@@ -1,0 +1,73 @@
+# Configuration basique pour peer Hyperledger Fabric 2.5
+# Côte d'Ivoire - Gestion foncière rurale
+
+logging:
+  level: info
+
+peer:
+  id: peer0
+  networkId: foncier-network
+  listenAddress: 0.0.0.0:7051
+  chaincodeListenAddress: 0.0.0.0:7052
+  chaincodeAddress: 0.0.0.0:7052
+  address: 0.0.0.0:7051
+  addressAutoDetect: false
+  
+  gossip:
+    bootstrap: 127.0.0.1:7051
+    useLeaderElection: true
+    orgLeader: false
+    endpoint: peer0:7051
+    externalEndpoint: peer0:7051
+    
+  tls:
+    enabled: true
+    cert:
+      file: /var/hyperledger/peer/tls/server.crt
+    key:
+      file: /var/hyperledger/peer/tls/server.key
+    rootcert:
+      file: /var/hyperledger/peer/tls/ca.crt
+    clientAuthRequired: false
+    
+  fileSystemPath: /var/hyperledger/production
+  
+  BCCSP:
+    Default: SW
+    SW:
+      Hash: SHA2
+      Security: 256
+      
+  mspConfigPath: /var/hyperledger/peer/msp
+
+  localMspId: AFOROrg
+  
+vm:
+  endpoint: unix:///host/var/run/docker.sock
+
+chaincode:
+  startuptimeout: 300s
+  executetimeout: 30s
+  mode: net
+  keepalive: 0
+  
+  system:
+    _lifecycle: enable
+    cscc: enable
+    lscc: enable
+    escc: enable
+    vscc: enable
+    qscc: enable
+
+ledger:
+  blockchain:
+  state:
+    stateDatabase: CouchDB
+    couchDBConfig:
+      couchDBAddress: couchdb:5984
+      username:
+      password:
+      maxRetries: 3
+      maxRetriesOnStartup: 12
+      requestTimeout: 35s
+      createGlobalChangesDB: false

@@ -1,0 +1,51 @@
+# Configuration cryptographique pour le réseau foncier Côte d'Ivoire
+# Fabric 3.1.1 - AFOR, CVGFR, PREFET
+# Architecture: 1 Orderer + 3 Peers (un par organisation)
+
+OrdererOrgs:
+  - Name: Orderer
+    Domain: foncier.ci
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer
+        SANS:
+          - "localhost"
+          - "127.0.0.1"
+          - "orderer.foncier.ci"
+
+PeerOrgs:
+  - Name: AFOR
+    Domain: afor.foncier.ci
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - "localhost"
+        - "127.0.0.1"
+        - "peer0.afor.foncier.ci"
+    Users:
+      Count: 1
+
+  - Name: CVGFR
+    Domain: cvgfr.foncier.ci
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - "localhost"
+        - "127.0.0.1"
+        - "peer0.cvgfr.foncier.ci"
+    Users:
+      Count: 1
+
+  - Name: PREFET
+    Domain: prefet.foncier.ci
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - "localhost"
+        - "127.0.0.1"
+        - "peer0.prefet.foncier.ci"
+    Users:
+      Count: 1

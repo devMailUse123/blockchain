@@ -1,0 +1,286 @@
+version: '3.8'
+
+# Réseau Hyperledger Fabric 2.5 - Version simplifiée pour test initial
+# Configuration pour la Côte d'Ivoire avec orderer principal + CouchDB
+
+networks:
+  foncier:
+    driver: bridge
+
+volumes:
+  orderer.foncier.ci:
+  couchdb-afor:
+  couchdb-cvgfr:
+  couchdb-prefet:
+  peer0.afor.foncier.ci:
+  peer0.cvgfr.foncier.ci:
+  peer0.prefet.foncier.ci:
+
+services:
+
+  # ============================================================================
+  # ORDERER PRINCIPAL
+  # ============================================================================
+  orderer.foncier.ci:
+    container_name: orderer.foncier.ci
+    image: hyperledger/fabric-orderer:3.1.1
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererOrg
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:7053
+      - ORDERER_OPERATIONS_LISTENADDRESS=orderer.foncier.ci:9443
+      - ORDERER_METRICS_PROVIDER=prometheus
+    volumes:
+      - ../network/config/orderer.yaml:/etc/hyperledger/fabric/orderer.yaml
+      - ../network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp:/var/hyperledger/orderer/msp
+      - ../network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls:/var/hyperledger/orderer/tls
+      - orderer.foncier.ci:/var/hyperledger/production/orderer
+    working_dir: /root
+    command: orderer
+    ports:
+      - "7050:7050"
+      - "7053:7053"
+      - "9443:9443"
+    networks:
+      - foncier
+
+  # ============================================================================
+  # COUCHDB POUR AFOR
+  # ============================================================================
+  couchdb-afor:
+    container_name: couchdb-afor
+    image: couchdb:3.3.2
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb-afor:/opt/couchdb/data
+    networks:
+      - foncier
+
+  couchdb-cvgfr:
+    container_name: couchdb-cvgfr
+    image: couchdb:3.3.2
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "6984:5984"
+    volumes:
+      - couchdb-cvgfr:/opt/couchdb/data
+    networks:
+      - foncier
+
+  couchdb-prefet:
+    container_name: couchdb-prefet
+    image: couchdb:3.3.2
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "7984:5984"
+    volumes:
+      - couchdb-prefet:/opt/couchdb/data
+    networks:
+      - foncier
+
+  # ============================================================================
+  # PEERS
+  # ============================================================================
+  peer0.afor.foncier.ci:
+    container_name: peer0.afor.foncier.ci
+    image: hyperledger/fabric-peer:3.1.1
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=docker_foncier
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer0.afor.foncier.ci
+      - CORE_PEER_ADDRESS=peer0.afor.foncier.ci:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.afor.foncier.ci:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.afor.foncier.ci:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.afor.foncier.ci:7051
+      - CORE_PEER_LOCALMSPID=AFOROrg
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer0.afor.foncier.ci:9447
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0afor"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb-afor:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/tls:/etc/hyperledger/fabric/tls
+      - peer0.afor.foncier.ci:/var/hyperledger/production
+      - ../chaincode-java:/opt/chaincode-java
+    working_dir: /root
+    command: peer node start
+    ports:
+      - "7051:7051"
+      - "9447:9447"
+    depends_on:
+      - couchdb-afor
+      - orderer.foncier.ci
+    networks:
+      - foncier
+
+  peer0.cvgfr.foncier.ci:
+    container_name: peer0.cvgfr.foncier.ci
+    image: hyperledger/fabric-peer:3.1.1
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=docker_foncier
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer0.cvgfr.foncier.ci
+      - CORE_PEER_ADDRESS=peer0.cvgfr.foncier.ci:8051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:8051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.cvgfr.foncier.ci:8052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:8052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.cvgfr.foncier.ci:8051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.cvgfr.foncier.ci:8051
+      - CORE_PEER_LOCALMSPID=CVGFROrg
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer0.cvgfr.foncier.ci:9448
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0cvgfr"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb-cvgfr:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/tls:/etc/hyperledger/fabric/tls
+      - peer0.cvgfr.foncier.ci:/var/hyperledger/production
+      - ../chaincode-java:/opt/chaincode-java
+    working_dir: /root
+    command: peer node start
+    ports:
+      - "8051:8051"
+      - "9448:9448"
+    depends_on:
+      - couchdb-cvgfr
+      - orderer.foncier.ci
+    networks:
+      - foncier
+
+  peer0.prefet.foncier.ci:
+    container_name: peer0.prefet.foncier.ci
+    image: hyperledger/fabric-peer:3.1.1
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=docker_foncier
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer0.prefet.foncier.ci
+      - CORE_PEER_ADDRESS=peer0.prefet.foncier.ci:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.prefet.foncier.ci:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.prefet.foncier.ci:9051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.prefet.foncier.ci:9051
+      - CORE_PEER_LOCALMSPID=PREFETOrg
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer0.prefet.foncier.ci:9449
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0prefet"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb-prefet:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/tls:/etc/hyperledger/fabric/tls
+      - peer0.prefet.foncier.ci:/var/hyperledger/production
+      - ../chaincode-java:/opt/chaincode-java
+    working_dir: /root
+    command: peer node start
+    ports:
+      - "9051:9051"
+      - "9449:9449"
+    depends_on:
+      - couchdb-prefet
+      - orderer.foncier.ci
+    networks:
+      - foncier
+
+  # ============================================================================
+  # CLI POUR ADMINISTRATION
+  # ============================================================================
+  cli:
+    container_name: cli
+    image: hyperledger/fabric-tools:2.5
+    labels:
+      service: hyperledger-fabric
+    tty: true
+    stdin_open: true
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - FABRIC_LOGGING_SPEC=INFO
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+    working_dir: /root
+    command: /bin/bash
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../organizations:/opt/organizations
+      - ../network/channel-artifacts:/opt/channel-artifacts
+      - ../chaincode-java:/opt/chaincode-java
+    depends_on:
+      - orderer.foncier.ci
+    networks:
+      - foncier

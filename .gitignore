@@ -1,0 +1,281 @@
+# ============================================================================
+# .gitignore pour Hyperledger Fabric 3.1.1 - Projet Foncier Côte d'Ivoire
+# ============================================================================
+
+# ============================================================================
+# CERTIFICATS ET CLÉS PRIVÉES - NE JAMAIS COMMITER !
+# ============================================================================
+# Tous les certificats et clés générés par Fabric CA
+network/organizations/ordererOrganizations/
+network/organizations/peerOrganizations/
+network/organizations/fabric-ca/
+
+# Fichiers de certificats spécifiques
+*.pem
+*.key
+*.crt
+*-key.pem
+*-cert.pem
+
+# Configuration Fabric CA
+fabric-ca-client-config.yaml
+fabric-ca-server-config.yaml
+
+# ============================================================================
+# ARTEFACTS DE CHANNEL ET BLOCKCHAIN
+# ============================================================================
+# Genesis blocks et channel artifacts
+network/channel-artifacts/*.block
+network/channel-artifacts/*.tx
+network/channel-artifacts/*.json
+
+# Wallet et identités
+**/wallet/
+**/connection-profile*.json
+**/connection-profile*.yaml
+
+# ============================================================================
+# VOLUMES ET DONNÉES DOCKER
+# ============================================================================
+# Volumes Docker persistants (données blockchain)
+**/production/
+**/ledgersData/
+**/stateLeveldb/
+**/historyLeveldb/
+**/chains/
+**/chaincodes/
+
+# Données CouchDB
+**/couchdb-data/
+
+# ============================================================================
+# LOGS ET FICHIERS TEMPORAIRES
+# ============================================================================
+# Logs
+*.log
+logs/
+*.log.*
+deployment.log
+api/logs/*.log
+
+# Fichiers temporaires
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================================================
+# BUILD ET DÉPENDANCES
+# ============================================================================
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.npm
+.eslintcache
+
+# Java / Gradle
+chaincode-java/.gradle/
+chaincode-java/build/
+chaincode-java/out/
+chaincode-java/bin/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+.gradle
+gradle-app.setting
+.gradletasknamecache
+
+# Java / Maven
+api-java/target/
+api-java/.mvn/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# ============================================================================
+# IDE ET ÉDITEURS
+# ============================================================================
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+.idea_modules/
+
+# Eclipse
+.classpath
+.project
+.settings/
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+local.properties
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ============================================================================
+# DOCKER
+# ============================================================================
+# Docker Compose override (configuration locale)
+docker-compose.override.yml
+docker-compose.local.yml
+
+# Backups Docker Compose
+*.yaml.backup
+*.yml.backup
+
+# ============================================================================
+# SYSTÈME D'EXPLOITATION
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# ENVIRONNEMENT ET SECRETS
+# ============================================================================
+# Variables d'environnement
+.env
+.env.local
+.env.*.local
+.env.production
+.env.test
+
+# Secrets et credentials
+secrets/
+*.secret
+credentials.json
+service-account.json
+
+# ============================================================================
+# DONNÉES ET BACKUPS
+# ============================================================================
+# Backups
+*.backup
+*.bak
+*.old
+backup/
+backups/
+
+# Données de test
+test-data/
+mock-data/
+
+# ============================================================================
+# CI/CD
+# ============================================================================
+# GitLab CI
+.gitlab-ci-local/
+
+# GitHub Actions
+.github/workflows/*.secrets
+
+# ============================================================================
+# DOCUMENTATION GÉNÉRÉE
+# ============================================================================
+# Documentation générée automatiquement
+docs/generated/
+site/
+
+# ============================================================================
+# FICHIERS SPÉCIFIQUES AU PROJET
+# ============================================================================
+# Packages chaincode
+*.tar.gz
+*.tgz
+*.zip
+
+# Fichiers de configuration locale
+config.local.json
+config.local.yaml
+
+# Scripts de développement temporaires
+scripts/temp/
+scripts/*.backup
+
+# ============================================================================
+# FICHIERS À CONSERVER (EXCEPTIONS)
+# ============================================================================
+# Garder certains fichiers de structure
+!network/channel-artifacts/.gitkeep
+!network/organizations/.gitkeep
+
+# Garder les wrappers Gradle
+!gradle/wrapper/gradle-wrapper.jar
+!gradlew
+!gradlew.bat
+
+# Garder les fichiers README
+!**/README.md
+!**/README.txt
+
+# ============================================================================
+# NOTES IMPORTANTES
+# ============================================================================
+# Ce .gitignore exclut TOUS les certificats et clés privées pour la sécurité.
+# Les certificats doivent être générés sur chaque environnement avec Fabric CA.
+# 
+# Pour déployer sur un nouveau serveur :
+# 1. Cloner le repo
+# 2. Exécuter ./scripts/setup-ca.sh full (pour générer les certificats)
+# 3. Exécuter ./scripts/deploy-complete.sh (pour déployer le réseau)
+#
+# NE JAMAIS commiter de certificats, clés privées ou données blockchain !
+# ============================================================================

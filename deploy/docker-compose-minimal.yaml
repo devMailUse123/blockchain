@@ -1,0 +1,100 @@
+version: '3.8'
+
+# Réseau Hyperledger Fabric 2.5 - Version simplifiée pour test initial
+# Configuration pour la Côte d'Ivoire avec orderer principal + CouchDB
+
+networks:
+  foncier:
+    driver: bridge
+
+volumes:
+  orderer.foncier.ci:
+  couchdb-afor:
+
+services:
+
+  # ============================================================================
+  # ORDERER PRINCIPAL
+  # ============================================================================
+  orderer.foncier.ci:
+    container_name: orderer.foncier.ci
+    image: hyperledger/fabric-orderer:2.5
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererOrg
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:7053
+      - ORDERER_OPERATIONS_LISTENADDRESS=orderer.foncier.ci:9443
+      - ORDERER_METRICS_PROVIDER=prometheus
+    volumes:
+      - ../organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp:/var/hyperledger/orderer/msp
+      - ../organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls:/var/hyperledger/orderer/tls
+      - orderer.foncier.ci:/var/hyperledger/production/orderer
+    working_dir: /root
+    command: orderer
+    ports:
+      - "7050:7050"
+      - "7053:7053"
+      - "9443:9443"
+    networks:
+      - foncier
+
+  # ============================================================================
+  # COUCHDB POUR AFOR
+  # ============================================================================
+  couchdb-afor:
+    container_name: couchdb-afor
+    image: couchdb:3.3.2
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb-afor:/opt/couchdb/data
+    networks:
+      - foncier
+
+  # ============================================================================
+  # CLI POUR ADMINISTRATION
+  # ============================================================================
+  cli:
+    container_name: cli
+    image: hyperledger/fabric-tools:2.5
+    labels:
+      service: hyperledger-fabric
+    tty: true
+    stdin_open: true
+    environment:
+      - GOPATH=/opt/gopath
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - FABRIC_LOGGING_SPEC=INFO
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: /bin/bash
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../organizations:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
+    depends_on:
+      - orderer.foncier.ci
+    networks:
+      - foncier

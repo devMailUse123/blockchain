@@ -1,0 +1,284 @@
+# Configuration réseau Hyperledger Fabric 3.1.1
+# Architecture: 3 organisations avec orderers distribués et canaux spécialisés
+# AFOR, CVGFR, PREFET avec canaux AFOR_CONTRAT_AGRAIRE, AFOR_CERTIFICATE, ADMIN
+
+Organizations:
+  # Organisation AFOR (Agence Foncière Rurale de Côte d'Ivoire)
+  - &AFOR
+    Name: AFOROrg
+    ID: AFOROrg
+    MSPDir: organizations/peerOrganizations/afor.foncier.ci/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('AFOROrg.admin', 'AFOROrg.peer', 'AFOROrg.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('AFOROrg.admin', 'AFOROrg.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('AFOROrg.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('AFOROrg.peer')"
+    AnchorPeers:
+      - Host: peer0.afor.foncier.ci
+        Port: 7051
+
+  # Organisation CVGFR (Comité Villageois de Gestion Foncière Rurale - Côte d'Ivoire)
+  - &CVGFR
+    Name: CVGFROrg
+    ID: CVGFROrg
+    MSPDir: organizations/peerOrganizations/cvgfr.foncier.ci/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('CVGFROrg.admin', 'CVGFROrg.peer', 'CVGFROrg.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('CVGFROrg.admin', 'CVGFROrg.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('CVGFROrg.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('CVGFROrg.peer')"
+    AnchorPeers:
+      - Host: peer0.cvgfr.foncier.ci
+        Port: 8051
+
+  # Organisation PREFET (Préfecture - Autorité Administrative Ivoirienne)
+  - &PREFET
+    Name: PREFETOrg
+    ID: PREFETOrg
+    MSPDir: organizations/peerOrganizations/prefet.foncier.ci/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('PREFETOrg.admin', 'PREFETOrg.peer', 'PREFETOrg.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('PREFETOrg.admin', 'PREFETOrg.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('PREFETOrg.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('PREFETOrg.peer')"
+    AnchorPeers:
+      - Host: peer0.prefet.foncier.ci
+        Port: 9051
+
+  # Organisation Orderer Global (pour coordination)
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID: OrdererOrg
+    MSPDir: organizations/ordererOrganizations/foncier.ci/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererOrg.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererOrg.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererOrg.admin')"
+    OrdererEndpoints:
+      - orderer.foncier.ci:7050
+
+################################################################################
+#   Capabilities - Fabric 3.1.1
+################################################################################
+Capabilities:
+  Channel: &ChannelCapabilities
+    V3_0: true
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_5: true
+
+################################################################################
+#   Application - Configuration des applications
+################################################################################
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+  Capabilities:
+    <<: *ApplicationCapabilities
+
+################################################################################
+#   Orderer - Configuration de l'orderer
+################################################################################
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  EtcdRaft:
+    Consenters:
+      - Host: orderer.foncier.ci
+        Port: 7050
+        ClientTLSCert: organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/server.crt
+        ServerTLSCert: organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/server.crt
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 100
+    AbsoluteMaxBytes: 10 MB
+    PreferredMaxBytes: 2 MB
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+  Capabilities:
+    <<: *OrdererCapabilities
+
+################################################################################
+#   Channel - Configuration par défaut des canaux
+################################################################################
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ChannelCapabilities
+
+################################################################################
+#   Profiles - Profils de configuration
+################################################################################
+Profiles:
+  # Profil pour le genesis block de l'orderer global
+  FoncierOrdererGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+      Capabilities: *OrdererCapabilities
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - <<: *AFOR
+        - <<: *CVGFR
+        - <<: *PREFET
+    Capabilities:
+      <<: *ChannelCapabilities
+
+  # Canal AFOR_CONTRAT_AGRAIRE - Contrats agraires (AFOR + CVGFR)
+  AFORContratAgraire:
+    <<: *ChannelDefaults
+    Consortium: SampleConsortium  # Requis pour les canaux d'application
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - <<: *AFOR
+        - <<: *CVGFR
+      Capabilities:
+        <<: *ApplicationCapabilities
+      Policies:
+        Readers:
+          Type: ImplicitMeta
+          Rule: "ANY Readers"
+        Writers:
+          Type: ImplicitMeta
+          Rule: "ANY Writers"
+        Admins:
+          Type: ImplicitMeta
+          Rule: "ANY Admins"
+        LifecycleEndorsement:
+          Type: Signature
+          Rule: "OR('AFOROrg.peer', 'CVGFROrg.peer')"
+        Endorsement:
+          Type: Signature
+          Rule: "AND('AFOROrg.peer', 'CVGFROrg.peer')"
+
+  # Canal AFOR_CERTIFICATE - Certificats fonciers (AFOR + CVGFR + PREFET)
+  AFORCertificate:
+    <<: *ChannelDefaults
+    Consortium: SampleConsortium
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - <<: *AFOR
+        - <<: *CVGFR
+        - <<: *PREFET
+      Capabilities:
+        <<: *ApplicationCapabilities
+      Policies:
+        Readers:
+          Type: ImplicitMeta
+          Rule: "ANY Readers"
+        Writers:
+          Type: ImplicitMeta
+          Rule: "ANY Writers"
+        Admins:
+          Type: ImplicitMeta
+          Rule: "MAJORITY Admins"
+        LifecycleEndorsement:
+          Type: ImplicitMeta
+          Rule: "MAJORITY Endorsement"
+        Endorsement:
+          Type: Signature
+          Rule: "AND('AFOROrg.peer', OR('CVGFROrg.peer', 'PREFETOrg.peer'))"
+
+  # Canal ADMIN - Administration et supervision (toutes les organisations)
+  AdminChannel:
+    <<: *ChannelDefaults
+    Consortium: SampleConsortium
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - <<: *AFOR
+        - <<: *CVGFR
+        - <<: *PREFET
+      Capabilities:
+        <<: *ApplicationCapabilities
+      Policies:
+        Readers:
+          Type: ImplicitMeta
+          Rule: "ANY Readers"
+        Writers:
+          Type: ImplicitMeta
+          Rule: "ANY Writers"
+        Admins:
+          Type: ImplicitMeta
+          Rule: "MAJORITY Admins"
+        LifecycleEndorsement:
+          Type: ImplicitMeta
+          Rule: "MAJORITY Endorsement"
+        Endorsement:
+          Type: ImplicitMeta
+          Rule: "MAJORITY Endorsement"
+
+################################################################################
+#   Consortium - Définition du consortium (pour compatibilité)
+################################################################################

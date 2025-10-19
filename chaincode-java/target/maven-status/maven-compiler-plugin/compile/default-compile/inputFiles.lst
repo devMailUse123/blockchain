@@ -1,0 +1,7 @@
+/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Metadonnees.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Signataire.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/chaincode/FoncierChaincode.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Evenement.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Terrain.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Personne.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/ContratFoncier.java
