@@ -193,10 +193,15 @@ Profiles:
     Capabilities:
       <<: *ChannelCapabilities
 
-  # Canal AFOR_CONTRAT_AGRAIRE - Contrats agraires (AFOR + CVGFR)
-  AFORContratAgraire:
+  # Canal CONTRAT_AGRAIRE - Contrats agraires (AFOR + CVGFR uniquement)
+  ContratAgraire:
     <<: *ChannelDefaults
-    Consortium: SampleConsortium  # Requis pour les canaux d'application
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+      Capabilities:
+        <<: *OrdererCapabilities
     Application:
       <<: *ApplicationDefaults
       Organizations:
@@ -221,39 +226,15 @@ Profiles:
           Type: Signature
           Rule: "AND('AFOROrg.peer', 'CVGFROrg.peer')"
 
-  # Canal AFOR_CERTIFICATE - Certificats fonciers (AFOR + CVGFR + PREFET)
-  AFORCertificate:
+  # Canal ADMIN - Administration et supervision (AFOR + CVGFR + PREFET)
+  Admin:
     <<: *ChannelDefaults
-    Consortium: SampleConsortium
-    Application:
-      <<: *ApplicationDefaults
+    Orderer:
+      <<: *OrdererDefaults
       Organizations:
-        - <<: *AFOR
-        - <<: *CVGFR
-        - <<: *PREFET
+        - *OrdererOrg
       Capabilities:
-        <<: *ApplicationCapabilities
-      Policies:
-        Readers:
-          Type: ImplicitMeta
-          Rule: "ANY Readers"
-        Writers:
-          Type: ImplicitMeta
-          Rule: "ANY Writers"
-        Admins:
-          Type: ImplicitMeta
-          Rule: "MAJORITY Admins"
-        LifecycleEndorsement:
-          Type: ImplicitMeta
-          Rule: "MAJORITY Endorsement"
-        Endorsement:
-          Type: Signature
-          Rule: "AND('AFOROrg.peer', OR('CVGFROrg.peer', 'PREFETOrg.peer'))"
-
-  # Canal ADMIN - Administration et supervision (toutes les organisations)
-  AdminChannel:
-    <<: *ChannelDefaults
-    Consortium: SampleConsortium
+        <<: *OrdererCapabilities
     Application:
       <<: *ApplicationDefaults
       Organizations:

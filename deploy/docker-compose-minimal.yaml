@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Réseau Hyperledger Fabric 2.5 - Version simplifiée pour test initial
 # Configuration pour la Côte d'Ivoire avec orderer principal + CouchDB
 

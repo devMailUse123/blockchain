@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   foncier:
     name: fabric-ca

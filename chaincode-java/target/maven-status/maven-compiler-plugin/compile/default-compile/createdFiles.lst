@@ -1,10 +1,6 @@
-gn/foncier/model/Personne.class
-gn/foncier/chaincode/FoncierChaincode$StatutContrat.class
-gn/foncier/chaincode/FoncierChaincode.class
-gn/foncier/model/Metadonnees.class
-gn/foncier/chaincode/FoncierChaincode$Organisation.class
-gn/foncier/model/ContratFoncier.class
-gn/foncier/model/Evenement.class
-gn/foncier/model/Terrain.class
-gn/foncier/model/Signataire.class
-gn/foncier/chaincode/FoncierChaincode$TypeContrat.class
+ci/foncier/chaincode/util/DeterministicMapper.class
+ci/foncier/chaincode/model/ContratAgraire.class
+ci/foncier/chaincode/FoncierChaincode.class
+ci/foncier/chaincode/model/ContractSignatory.class
+ci/foncier/chaincode/model/Terrain.class
+ci/foncier/chaincode/model/Person.class

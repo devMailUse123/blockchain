@@ -1,0 +1,262 @@
+```
+╔═══════════════════════════════════════════════════════════════════════════════════════╗
+║           ARCHITECTURE RÉSEAU FABRIC 3.1.1 - GESTION FONCIÈRE CÔTE D'IVOIRE          ║
+╚═══════════════════════════════════════════════════════════════════════════════════════╝
+
+                                   ┌─────────────────────────┐
+                                   │    ORDERER (EtcdRaft)   │
+                                   │  orderer.foncier.ci     │
+                                   │     Port: 7050/7053     │
+                                   └────────────┬────────────┘
+                                                │
+                      ┌─────────────────────────┴──────────────────────────┐
+                      │                                                    │
+                      ▼                                                    ▼
+      ┌───────────────────────────────┐              ┌───────────────────────────────┐
+      │   CHANNEL: CONTRAT-AGRAIRE    │              │      CHANNEL: ADMIN           │
+      │   (Contrats Agraires)         │              │   (Administration Réseau)     │
+      │                               │              │                               │
+      │   📋 Endorsement Policy:      │              │   📋 Endorsement Policy:      │
+      │   AND('AFOR','CVGFR')         │              │   MAJORITY (2/3)              │
+      │                               │              │                               │
+      │   📦 Chaincode:               │              │   📦 Chaincode:               │
+      │   contrats-fonciers v1.0 ✅   │              │   (aucun pour l'instant) ⏳    │
+      └───────────────┬───────────────┘              └───────┬───────────────────────┘
+                      │                                      │
+         ┌────────────┴──────────┐                  ┌────────┴──────────────────────┐
+         │                       │                  │                               │
+         ▼                       ▼                  ▼                 ▼             ▼
+
+┏━━━━━━━━━━━━━━━━━┓  ┏━━━━━━━━━━━━━━━━━┓  ┏━━━━━━━━━━━━━━━━━┓  ┏━━━━━━━━━━━━━━━━━┓  ┏━━━━━━━━━━━━━━━━━┓
+┃    AFOR ORG     ┃  ┃   CVGFR ORG     ┃  ┃    AFOR ORG     ┃  ┃   CVGFR ORG     ┃  ┃   PREFET ORG    ┃
+┃ (Agence Fonc.)  ┃  ┃ (Comité Vill.)  ┃  ┃ (Agence Fonc.)  ┃  ┃ (Comité Vill.)  ┃  ┃  (Préfecture)   ┃
+┣━━━━━━━━━━━━━━━━━┫  ┣━━━━━━━━━━━━━━━━━┫  ┣━━━━━━━━━━━━━━━━━┫  ┣━━━━━━━━━━━━━━━━━┫  ┣━━━━━━━━━━━━━━━━━┫
+┃                 ┃  ┃                 ┃  ┃                 ┃  ┃                 ┃  ┃                 ┃
+┃ 🔐 Fabric CA    ┃  ┃ 🔐 Fabric CA    ┃  ┃ 🔐 Fabric CA    ┃  ┃ 🔐 Fabric CA    ┃  ┃ 🔐 Fabric CA    ┃
+┃ ca-afor:7054    ┃  ┃ ca-cvgfr:8054   ┃  ┃ ca-afor:7054    ┃  ┃ ca-cvgfr:8054   ┃  ┃ ca-prefet:9054  ┃
+┃        ⬇        ┃  ┃        ⬇        ┃  ┃        ⬇        ┃  ┃        ⬇        ┃  ┃        ⬇        ┃
+┃ 🖥️ Peer         ┃  ┃ 🖥️ Peer         ┃  ┃ 🖥️ Peer         ┃  ┃ 🖥️ Peer         ┃  ┃ 🖥️ Peer         ┃
+┃ peer0.afor      ┃  ┃ peer0.cvgfr     ┃  ┃ peer0.afor      ┃  ┃ peer0.cvgfr     ┃  ┃ peer0.prefet    ┃
+┃ localhost:7051  ┃  ┃ localhost:8051  ┃  ┃ localhost:7051  ┃  ┃ localhost:8051  ┃  ┃ localhost:9051  ┃
+┃        ⬇        ┃  ┃        ⬇        ┃  ┃        ⬇        ┃  ┃        ⬇        ┃  ┃        ⬇        ┃
+┃ 🗄️ CouchDB      ┃  ┃ 🗄️ CouchDB      ┃  ┃ 🗄️ CouchDB      ┃  ┃ 🗄️ CouchDB      ┃  ┃ 🗄️ CouchDB      ┃
+┃ couchdb-afor    ┃  ┃ couchdb-cvgfr   ┃  ┃ couchdb-afor    ┃  ┃ couchdb-cvgfr   ┃  ┃ couchdb-prefet  ┃
+┃ localhost:5984  ┃  ┃ localhost:6984  ┃  ┃ localhost:5984  ┃  ┃ localhost:6984  ┃  ┃ localhost:7984  ┃
+┃                 ┃  ┃                 ┃  ┃                 ┃  ┃                 ┃  ┃                 ┃
+┗━━━━━━━━━━━━━━━━━┛  ┗━━━━━━━━━━━━━━━━━┛  ┗━━━━━━━━━━━━━━━━━┛  ┗━━━━━━━━━━━━━━━━━┛  ┗━━━━━━━━━━━━━━━━━┛
+    [CONTRAT-AGRAIRE]     [CONTRAT-AGRAIRE]           [ADMIN]              [ADMIN]             [ADMIN]
+         ⬆                     ⬆                        ⬆                    ⬆                   ⬆
+         │                     │                        │                    │                   │
+         └──────────┬──────────┘                        └─────────┬──────────┴───────────────────┘
+                    │                                             │
+                    ▼                                             ▼
+         ┌──────────────────────┐                      ┌──────────────────────┐
+         │  📜 SMART CONTRACT   │                      │  📜 SMART CONTRACT   │
+         │  contrats-fonciers   │                      │    (à développer)    │
+         │                      │                      │                      │
+         │  • createContract()  │                      │  • Gestion accès     │
+         │  • readContract()    │                      │  • Audit réseau      │
+         │  • updateContract()  │                      │  • Gouvernance       │
+         │  • deleteContract()  │                      │                      │
+         │  • getAllContracts() │                      │                      │
+         │  • queryByOwner()    │                      │                      │
+         │  • queryByLocation() │                      │                      │
+         │  • getHistory()      │                      │                      │
+         └──────────┬───────────┘                      └──────────┬───────────┘
+                    │                                             │
+                    └─────────────────┬───────────────────────────┘
+                                      │
+                                      ▼
+                          ┌─────────────────────────┐
+                          │   🌐 API REST Node.js   │
+                          │   Express + Fabric SDK  │
+                          │   localhost:3000        │
+                          │                         │
+                          │  GET  /health           │
+                          │  POST /auth/register    │
+                          │  POST /auth/login       │
+                          │  GET  /contracts        │
+                          │  POST /contracts        │
+                          │  GET  /contracts/:id    │
+                          │  PUT  /contracts/:id    │
+                          │  GET  /contracts/search │
+                          └─────────────────────────┘
+
+
+╔═══════════════════════════════════════════════════════════════════════════════════════╗
+║                            FLUX DE TRANSACTION (CONTRAT-AGRAIRE)                      ║
+╚═══════════════════════════════════════════════════════════════════════════════════════╝
+
+  1. Client Application               POST /contracts
+            │                         { contratData }
+            │
+            ▼
+  2. API REST Node.js                 fabric-network SDK
+            │                         createContract(data)
+            │
+            ├────────────┬────────────┐
+            ▼            ▼            │
+  3. Endorse:                         │
+     peer0.afor      peer0.cvgfr      │
+     [VALIDE ✅]     [VALIDE ✅]       │  (Policy: AND satisfied)
+            │            │            │
+            └────────────┴────────────┘
+                    │
+                    ▼
+  4. Orderer                          Ordonne et crée block
+     orderer.foncier.ci               Block #N (EtcdRaft)
+                    │
+                    │
+            ┌───────┴───────┐
+            ▼               ▼
+  5. Commit:
+     peer0.afor         peer0.cvgfr
+     [COMMIT ✅]        [COMMIT ✅]
+            │               │
+            ▼               ▼
+  6. CouchDB:
+     couchdb-afor       couchdb-cvgfr
+     [UPDATE ✅]        [UPDATE ✅]
+            │               │
+            └───────┬───────┘
+                    │
+                    ▼
+  7. Response                         201 Created
+     → Client Application             { transactionId, contract }
+
+
+╔═══════════════════════════════════════════════════════════════════════════════════════╗
+║                                SÉCURITÉ & CERTIFICATS                                 ║
+╚═══════════════════════════════════════════════════════════════════════════════════════╝
+
+network/organizations/
+│
+├── ordererOrganizations/foncier.ci/
+│   ├── ca/                          ← Certificate Authority racine
+│   │   ├── ca.foncier.ci-cert.pem
+│   │   └── ca.foncier.ci-key.pem
+│   ├── tlsca/                       ← TLS Certificate Authority
+│   │   ├── tlsca.foncier.ci-cert.pem
+│   │   └── tlsca.foncier.ci-key.pem
+│   ├── orderers/orderer.foncier.ci/
+│   │   ├── msp/                     ← Membership Service Provider
+│   │   │   ├── signcerts/           ← Certificat de signature
+│   │   │   ├── keystore/            ← Clé privée
+│   │   │   ├── cacerts/             ← CA de confiance
+│   │   │   └── config.yaml          ← NodeOUs config
+│   │   └── tls/                     ← Certificats TLS
+│   │       ├── server.crt           ← Certificat serveur TLS
+│   │       ├── server.key           ← Clé privée TLS
+│   │       └── ca.crt               ← CA TLS de confiance
+│   └── users/
+│       └── Admin@foncier.ci/        ← Administrateur orderer
+│           └── msp/
+│
+└── peerOrganizations/
+    ├── afor.foncier.ci/
+    │   ├── ca/                      ← CA AFOR (ca-afor:7054)
+    │   ├── tlsca/                   ← TLS CA AFOR
+    │   ├── peers/peer0.afor.foncier.ci/
+    │   │   ├── msp/                 ← Identity du peer
+    │   │   └── tls/                 ← Certificats TLS
+    │   └── users/
+    │       ├── Admin@afor.foncier.ci/     ← Admin AFOR
+    │       └── User1@afor.foncier.ci/     ← Utilisateur exemple
+    │
+    ├── cvgfr.foncier.ci/            (même structure)
+    └── prefet.foncier.ci/           (même structure)
+
+
+╔═══════════════════════════════════════════════════════════════════════════════════════╗
+║                                PORTS & SERVICES                                       ║
+╚═══════════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────┬──────────┬───────────────────────────────────────────────┐
+│   SERVICE       │   PORT   │              DESCRIPTION                      │
+├─────────────────┼──────────┼───────────────────────────────────────────────┤
+│ ca-afor         │   7054   │ Certificate Authority AFOR                    │
+│ ca-cvgfr        │   8054   │ Certificate Authority CVGFR                   │
+│ ca-prefet       │   9054   │ Certificate Authority PREFET                  │
+│ ca-orderer      │  10054   │ Certificate Authority Orderer                 │
+├─────────────────┼──────────┼───────────────────────────────────────────────┤
+│ orderer         │   7050   │ Orderer Service (transactions)                │
+│ orderer (admin) │   7053   │ Orderer Admin API (osnadmin)                  │
+├─────────────────┼──────────┼───────────────────────────────────────────────┤
+│ peer0.afor      │   7051   │ Peer AFOR (chaincode operations)              │
+│ peer0.afor      │   9444   │ Peer AFOR Operations & Metrics                │
+│ peer0.cvgfr     │   8051   │ Peer CVGFR (chaincode operations)             │
+│ peer0.cvgfr     │   9445   │ Peer CVGFR Operations & Metrics               │
+│ peer0.prefet    │   9051   │ Peer PREFET (chaincode operations)            │
+│ peer0.prefet    │   9446   │ Peer PREFET Operations & Metrics              │
+├─────────────────┼──────────┼───────────────────────────────────────────────┤
+│ couchdb-afor    │   5984   │ State Database AFOR                           │
+│ couchdb-cvgfr   │   6984   │ State Database CVGFR                          │
+│ couchdb-prefet  │   7984   │ State Database PREFET                         │
+├─────────────────┼──────────┼───────────────────────────────────────────────┤
+│ api-rest        │   3000   │ REST API (Express + Fabric SDK)               │
+└─────────────────┴──────────┴───────────────────────────────────────────────┘
+
+
+╔═══════════════════════════════════════════════════════════════════════════════════════╗
+║                            COMMANDES UTILES                                           ║
+╚═══════════════════════════════════════════════════════════════════════════════════════╝
+
+# Déploiement complet automatique
+./scripts/deploy-complete.sh
+
+# Vérifier les channels de l'orderer
+osnadmin channel list -o localhost:7053 \
+  --ca-file network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp/tlscacerts/tlsca.foncier.ci-cert.pem \
+  --client-cert network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/server.crt \
+  --client-key network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/server.key
+
+# Lister les channels d'un peer (AFOR)
+export CORE_PEER_LOCALMSPID="AFOROrg"
+export CORE_PEER_ADDRESS=localhost:7051
+export CORE_PEER_MSPCONFIGPATH=network/organizations/peerOrganizations/afor.foncier.ci/users/Admin@afor.foncier.ci/msp
+peer channel list
+
+# Query chaincode sur CONTRAT-AGRAIRE
+peer chaincode query \
+  -C contrat-agraire \
+  -n contrats-fonciers \
+  -c '{"function":"getAllContracts","Args":[]}'
+
+# Invoke chaincode (créer un contrat)
+peer chaincode invoke \
+  -o localhost:7050 \
+  --ordererTLSHostnameOverride orderer.foncier.ci \
+  --tls --cafile $ORDERER_CA \
+  -C contrat-agraire \
+  -n contrats-fonciers \
+  --peerAddresses localhost:7051 --tlsRootCertFiles $PEER_AFOR_TLS \
+  --peerAddresses localhost:8051 --tlsRootCertFiles $PEER_CVGFR_TLS \
+  -c '{"function":"createContract","Args":["CF-2024-001","KOUASSI Jean","TRAORE Awa","Bouaké","5 hectares","2024-01-15","2029-01-14","ACTIF"]}'
+
+# Logs d'un conteneur
+docker logs -f peer0.afor.foncier.ci
+docker logs -f orderer.foncier.ci
+
+# État des conteneurs
+docker ps --filter "label=service=hyperledger-fabric"
+
+# Nettoyer le réseau
+./scripts/deploy-complete.sh --clean
+
+
+╔═══════════════════════════════════════════════════════════════════════════════════════╗
+║                         RÉFÉRENCES & DOCUMENTATION                                    ║
+╚═══════════════════════════════════════════════════════════════════════════════════════╝
+
+📖 docs/CHANNEL-ARCHITECTURE.md      Architecture détaillée des 2 channels
+📖 docs/MODIFICATIONS-2-CHANNELS.md  Résumé des modifications effectuées
+📖 docs/DEPLOYMENT.md                Guide de déploiement complet
+📖 docs/API.md                       Documentation de l'API REST
+📖 README.md                         Vue d'ensemble du projet
+
+🔗 Hyperledger Fabric 3.1.1:  https://hyperledger-fabric.readthedocs.io/en/release-3.1/
+🔗 Fabric CA 1.5.15:           https://hyperledger-fabric-ca.readthedocs.io/
+🔗 CouchDB 3.3.2:              https://docs.couchdb.org/
+🔗 Docker:                     https://docs.docker.com/
+
+```

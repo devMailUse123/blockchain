@@ -1,7 +1,6 @@
-/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Metadonnees.java
-/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Signataire.java
-/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/chaincode/FoncierChaincode.java
-/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Evenement.java
-/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Terrain.java
-/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/Personne.java
-/home/absolue/my-blockchain/chaincode-java/src/main/java/gn/foncier/model/ContratFoncier.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/ContratAgraire.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/util/DeterministicMapper.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/Terrain.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/Person.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/FoncierChaincode.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/ContractSignatory.java
