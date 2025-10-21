@@ -1,0 +1,43 @@
+{
+  "name": "afor-blockchain-api",
+  "version": "1.0.0",
+  "description": "API REST pour le réseau Hyperledger Fabric de sécurisation foncière rurale",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest --coverage",
+    "lint": "eslint src/**/*.js"
+  },
+  "keywords": [
+    "hyperledger",
+    "fabric",
+    "blockchain",
+    "foncier",
+    "côte d'ivoire"
+  ],
+  "author": "AFOR",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "express": "^4.18.2",
+    "fabric-network": "^2.2.20",
+    "fabric-ca-client": "^2.2.20",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "dotenv": "^16.3.1",
+    "joi": "^17.11.0",
+    "winston": "^3.11.0",
+    "express-rate-limit": "^7.1.5",
+    "express-async-errors": "^3.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "eslint": "^8.55.0",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

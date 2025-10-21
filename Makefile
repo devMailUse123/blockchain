@@ -9,6 +9,7 @@ NETWORK_DIR = deploy
 SCRIPTS_DIR = scripts
 CHAINCODE_DIR = chaincode-java
 API_DIR = api
+API_PORT = 3000
 
 # Couleurs pour l'affichage
 GREEN = \033[0;32m
@@ -89,3 +90,44 @@ all: clean network-up deploy-full test-create test-query ## Workflow complet (to
 # Quick start
 quick: network-up deploy-full ## Démarrage rapide (réseau + déploiement)
 	@echo "$(GREEN)✅ Démarrage rapide terminé !$(NC)"
+
+# ========== API REST ==========
+
+api-install: ## Installer les dépendances de l'API
+	@echo "$(YELLOW)📦 Installation des dépendances de l'API...$(NC)"
+	cd $(API_DIR) && npm install
+	@echo "$(GREEN)✅ Dépendances installées$(NC)"
+
+api-start: ## Démarrer l'API REST
+	@echo "$(YELLOW)🚀 Démarrage de l'API REST...$(NC)"
+	cd $(API_DIR) && mkdir -p logs && node src/server.js
+
+api-dev: ## Démarrer l'API en mode développement (avec nodemon)
+	@echo "$(YELLOW)🚀 Démarrage de l'API en mode développement...$(NC)"
+	cd $(API_DIR) && npm run dev
+
+api-test: ## Tester l'API REST
+	@echo "$(YELLOW)🧪 Test de l'API REST...$(NC)"
+	@sleep 2
+	@echo "$(GREEN)1️⃣  Health Check:$(NC)"
+	@curl -s http://localhost:$(API_PORT)/api/health | jq .
+	@echo ""
+	@echo "$(GREEN)2️⃣  Blockchain Health:$(NC)"
+	@curl -s http://localhost:$(API_PORT)/api/health/blockchain | jq .
+
+api-logs: ## Voir les logs de l'API
+	@tail -f $(API_DIR)/logs/all.log
+
+api-stop: ## Arrêter l'API REST
+	@echo "$(YELLOW)🛑 Arrêt de l'API...$(NC)"
+	@pkill -f "node src/server.js" || true
+	@echo "$(GREEN)✅ API arrêtée$(NC)"
+
+# ========== Workflow Complet avec API ==========
+
+start-all: network-up deploy-full api-install api-start ## Tout démarrer (réseau + chaincode + API)
+	@echo "$(GREEN)✅ Tout est démarré !$(NC)"
+	@echo "$(YELLOW)API accessible sur: http://localhost:$(API_PORT)$(NC)"
+
+stop-all: network-down api-stop ## Tout arrêter
+	@echo "$(GREEN)✅ Tout est arrêté$(NC)"

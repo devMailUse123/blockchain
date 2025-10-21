@@ -1,34 +1,27 @@
-# 🌾 Blockchain Foncière - Côte d'Ivoire# Système de Gestion Foncière - Côte d'Ivoire
+# 🌾 Blockchain Foncière - Côte d'Ivoire
 
-
-
-Plateforme de sécurisation des droits fonciers ruraux basée sur **Hyperledger Fabric 3.1.1** avec chaincode Java déterministe.## Architecture Hyperledger Fabric 3.1.1 Refactorisée
-
-
-
-[![Fabric](https://img.shields.io/badge/Hyperledger%20Fabric-3.1.1-blue)](https://www.hyperledger.org/use/fabric)### Vue d'ensemble
-
+[![Fabric](https://img.shields.io/badge/Hyperledger%20Fabric-3.1.1-blue)](https://www.hyperledger.org/use/fabric)
 [![Java](https://img.shields.io/badge/Chaincode-Java%2011-orange)](https://openjdk.org/)
-
-[![Node.js](https://img.shields.io/badge/API-Node.js%2020-green)](https://nodejs.org/)Ce projet implémente un système de gestion des contrats fonciers ruraux pour la Côte d'Ivoire sur blockchain Hyperledger Fabric 3.1.1. L'architecture a été complètement refactorisée pour utiliser **Java** pour les composants métier :
-
+[![Node.js](https://img.shields.io/badge/API-Node.js%2018+-green)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-- **Chaincode Java** avec Fabric Java SDK moderne
+Plateforme de sécurisation des droits fonciers ruraux basée sur **Hyperledger Fabric 3.1.1** avec chaincode Java et API REST Node.js.
 
----- **API REST Spring Boot** pour l'interface applicative
+## 🎯 Vue d'Ensemble
 
-- **3 organisations** avec leurs orderers distribués
+Système blockchain pour la gestion sécurisée des contrats fonciers ruraux en Côte d'Ivoire, permettant:
 
-## 🎯 Vue d'Ensemble- **Canaux spécialisés** pour différents types de documents
+- ✅ **Enregistrement immuable** des contrats fonciers
+- ✅ **Traçabilité complète** de l'historique des transactions
+- ✅ **API REST** pour l'intégration avec applications externes
+- ✅ **Multi-organisations** (AFOR, CVGFR, PREFET)
+- ✅ **Sécurité renforcée** avec certificats X.509 et TLS
 
+## 🏗️ Architecture
 
+### Réseau Hyperledger Fabric
 
-Système blockchain pour la gestion sécurisée des contrats fonciers ruraux en Côte d'Ivoire, permettant:## 🏗️ Architecture
-
-
-
-- ✅ **Enregistrement immuable** des contrats fonciers### Organisations
+**3 Organisations** + **1 Orderer**
 
 - ✅ **Traçabilité complète** des transactions
 
