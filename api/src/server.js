@@ -3,11 +3,15 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
+const session = require('express-session');
 require('dotenv').config();
 require('express-async-errors');
 
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
+const { verifyKeycloakToken } = require('./middleware/auth');
+const swaggerSpec = require('./config/swagger');
 const contractRoutes = require('./routes/contractRoutes');
 const healthRoutes = require('./routes/healthRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -34,10 +38,27 @@ app.use(express.urlencoded({ extended: true }));
 // Logging HTTP
 app.use(morgan('combined', { stream: logger.stream }));
 
-// Routes
+// Swagger UI - Documentation avec support Bearer Token
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'API Blockchain AFOR - Documentation',
+  swaggerOptions: {
+    persistAuthorization: true,
+  }
+}));
+
+// Swagger JSON
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// Routes publiques (pas besoin d'authentification)
 app.use('/api/health', healthRoutes);
-app.use('/api/contracts', contractRoutes);
-app.use('/api/users', userRoutes);
+
+// Routes protégées (nécessitent un token Keycloak)
+app.use('/api/contracts', verifyKeycloakToken, contractRoutes);
+app.use('/api/users', verifyKeycloakToken, userRoutes);
 
 // Route racine
 app.get('/', (req, res) => {
@@ -49,7 +70,8 @@ app.get('/', (req, res) => {
       health: '/api/health',
       contracts: '/api/contracts',
       users: '/api/users',
-      documentation: '/api/docs'
+      documentation: '/api-docs',
+      openapi: '/api-docs.json'
     }
   });
 });

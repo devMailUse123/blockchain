@@ -3,8 +3,6 @@ package ci.foncier.chaincode;
 import ci.foncier.chaincode.model.*;
 import ci.foncier.chaincode.util.DeterministicMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.*;

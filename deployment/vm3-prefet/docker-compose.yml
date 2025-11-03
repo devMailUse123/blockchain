@@ -1,0 +1,122 @@
+version: '3.8'
+
+networks:
+  fabric-network:
+    name: fabric-network
+    driver: bridge
+
+volumes:
+  peer0-prefet:
+  couchdb-prefet:
+
+services:
+  # ==========================================================================
+  # CERTIFICATE AUTHORITY PREFET
+  # ==========================================================================
+  ca-prefet:
+    image: hyperledger/fabric-ca:1.5.15
+    container_name: ca-prefet
+    hostname: ca-prefet
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-prefet
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=9054
+      - FABRIC_CA_SERVER_OPERATIONS_LISTENADDRESS=0.0.0.0:19054
+    ports:
+      - "9054:9054"
+      - "19054:19054"
+    command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
+    volumes:
+      - /opt/fabric/organizations/peerOrganizations/prefet.foncier.ci/ca:/etc/hyperledger/fabric-ca-server
+    networks:
+      - fabric-network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # COUCHDB PREFET
+  # ==========================================================================
+  couchdb-prefet:
+    image: couchdb:3.3.2
+    container_name: couchdb-prefet
+    hostname: couchdb-prefet
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "7984:5984"
+    volumes:
+      - couchdb-prefet:/opt/couchdb/data
+    networks:
+      - fabric-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ==========================================================================
+  # PEER PREFET
+  # ==========================================================================
+  peer0.prefet.foncier.ci:
+    image: hyperledger/fabric-peer:3.1.1
+    container_name: peer0.prefet.foncier.ci
+    hostname: peer0.prefet.foncier.ci
+    environment:
+      # Logging
+      - FABRIC_LOGGING_SPEC=INFO
+      
+      # Peer ID
+      - CORE_PEER_ID=peer0.prefet.foncier.ci
+      - CORE_PEER_ADDRESS=peer0.prefet.foncier.ci:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.prefet.foncier.ci:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      
+      # Gossip
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.prefet.foncier.ci:9051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.prefet.foncier.ci:9051
+      
+      # MSP
+      - CORE_PEER_LOCALMSPID=PREFETMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      
+      # Operations & Metrics
+      - CORE_OPERATIONS_LISTENADDRESS=0.0.0.0:9449
+      - CORE_METRICS_PROVIDER=prometheus
+      
+      # TLS
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      
+      # State Database
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb-prefet:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+      
+      # Chaincode
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fabric-network
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0prefet"}
+    ports:
+      - "9051:9051"
+      - "9449:9449"
+    volumes:
+      - /opt/fabric/organizations/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci:/etc/hyperledger/fabric
+      - peer0-prefet:/var/hyperledger/production
+      - /var/run/docker.sock:/host/var/run/docker.sock
+    depends_on:
+      couchdb-prefet:
+        condition: service_healthy
+    networks:
+      - fabric-network
+    restart: unless-stopped
+    extra_hosts:
+      - "orderer.foncier.ci:ORDERER_IP_HERE"
+      - "peer0.afor.foncier.ci:AFOR_IP_HERE"
+      - "peer0.cvgfr.foncier.ci:CVGFR_IP_HERE"

@@ -22,6 +22,7 @@ class FabricService {
   async initWallet() {
     if (this.wallet) return this.wallet;
     
+    // Fabric Network 2.x utilise newInMemoryWallet sans parenthèses
     this.wallet = await Wallets.newInMemoryWallet();
     logger.info('Wallet en mémoire initialisé');
     return this.wallet;

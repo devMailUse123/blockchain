@@ -680,31 +680,129 @@ Voir [docs/API.md](docs/API.md) pour la spécification complète.
 
 ---
 
+## � Documentation Complète
+
+### 🎯 Pour Commencer
+
+1. **[GUIDE-DEPLOIEMENT-PRODUCTION.md](GUIDE-DEPLOIEMENT-PRODUCTION.md)** ⭐
+   - Guide complet étape par étape
+   - Tests locaux → Infrastructure → Multi-VM → Production
+   - 7 phases détaillées avec toutes les commandes
+
+2. **[CHECKLIST-DEPLOIEMENT.md](CHECKLIST-DEPLOIEMENT.md)** ✅
+   - Plus de 150 points de vérification
+   - Critères de mise en production
+   - Procédures d'incident
+
+3. **[RESUME-EXECUTIF.md](RESUME-EXECUTIF.md)** 📊
+   - Évaluation du projet
+   - Plan d'action sur 4 semaines
+   - Points forts et à améliorer
+
+### �️ Scripts Disponibles
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `test-local-complet.sh` | Test automatique complet | `./scripts/test-local-complet.sh` |
+| `deploy-multi-vm.sh` | Déploiement sur VMs | `./scripts/deploy-multi-vm.sh deploy` |
+| `maintenance.sh` | Backups, monitoring, stats | `./scripts/maintenance.sh menu` |
+| `deploy-full.sh` | Déploiement chaincode | Utilisé par `make deploy-full` |
+
+### 📁 Configuration Multi-VM
+
+Voir **[deployment/README.md](deployment/README.md)** pour :
+- Configuration Docker Compose par VM
+- Instructions de déploiement distribué
+- Dépannage réseau multi-machines
+
+---
+
+## 🚀 Roadmap
+
+### ✅ Complété
+- [x] Architecture Fabric 3.1.1 moderne
+- [x] Chaincode Java avec sérialisation déterministe
+- [x] API REST Node.js complète
+- [x] Scripts d'automatisation
+- [x] Configuration Docker Compose (local + production)
+- [x] Infrastructure as Code (Terraform)
+- [x] Documentation complète
+- [x] Scripts de déploiement multi-VM
+
+### 🔄 En Cours / À Faire
+- [ ] Playbooks Ansible complets
+- [ ] Tests unitaires chaincode (70% → 100%)
+- [ ] Tests d'intégration API
+- [ ] Monitoring Prometheus/Grafana
+- [ ] CI/CD Pipeline GitHub Actions
+- [ ] Tests de performance (load testing)
+- [ ] Authentification JWT complète
+- [ ] Logs centralisés (ELK Stack)
+
+---
+
+## 📞 Support
+
+### En cas de problème
+
+**Niveau 1 - Documentation**
+1. Consultez [GUIDE-DEPLOIEMENT-PRODUCTION.md](GUIDE-DEPLOIEMENT-PRODUCTION.md)
+2. Vérifiez [CHECKLIST-DEPLOIEMENT.md](CHECKLIST-DEPLOIEMENT.md)
+3. Lisez [deployment/README.md](deployment/README.md) pour multi-VM
+
+**Niveau 2 - Logs et Diagnostics**
+```bash
+# Logs des conteneurs
+make logs
+
+# Health checks
+./scripts/maintenance.sh health
+
+# Statistiques réseau
+./scripts/maintenance.sh stats
+```
+
+**Niveau 3 - Scripts de Debug**
+```bash
+# Tester localement
+./scripts/test-local-complet.sh
+
+# Vérifier CouchDB
+make test-couchdb
+
+# Redémarrer un service
+docker-compose restart peer0.afor.foncier.ci
+```
+
+**Niveau 4 - Communauté**
+- GitHub Issues de ce projet
+- [Hyperledger Fabric Discord](https://discord.gg/hyperledger)
+- [Stack Overflow](https://stackoverflow.com/questions/tagged/hyperledger-fabric)
+
+---
+
 ## 📝 License
 
 Apache License 2.0
 
 ---
 
-## 🚀 Prochaines Étapes
+## 🎯 Statut du Projet
 
-- [ ] Déployer l'API REST en production
-- [ ] Configurer le monitoring (Prometheus/Grafana)
-- [ ] Implémenter l'authentification JWT
-- [ ] Ajouter des tests de performance
-- [ ] Intégrer avec les systèmes existants
+**Status Actuel**: ✅ **PRÊT POUR TESTS LOCAUX** | ⚠️ **À COMPLÉTER POUR PRODUCTION**
 
----
+| Composant | Statut | Notes |
+|-----------|--------|-------|
+| Chaincode Java | ✅ Prêt | Déterministe, validé |
+| API REST | ✅ Prêt | À sécuriser (JWT) |
+| Tests Locaux | ✅ Prêt | Script automatique |
+| Docker Compose Local | ✅ Prêt | Testé et validé |
+| Scripts Déploiement | ✅ Prêt | Multi-VM automatisé |
+| Infrastructure Terraform | ✅ Prêt | AWS ready |
+| Monitoring | ⚠️ Partiel | Structure présente |
+| CI/CD | ❌ À faire | GitHub Actions |
+| Tests E2E | ⚠️ Partiel | À compléter |
 
-## 📞 Support
-
-Pour toute question ou problème:
-1. Consultez le [SUCCESS_REPORT.md](SUCCESS_REPORT.md)
-2. Vérifiez les logs: `make logs`
-3. Testez avec: `make test-create`
-
----
-
-**Status**: ✅ **Production Ready** - Chaincode v4.0 déterministe déployé et testé avec succès
-
-**Dernière mise à jour**: Octobre 2025
+**Dernière mise à jour**: 30 Octobre 2025  
+**Version**: 1.0  
+**Équipe**: AFOR - Agence Foncière Rurale de Côte d'Ivoire

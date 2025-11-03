@@ -38,15 +38,15 @@ package: build ## Créer le package chaincode (.tar.gz)
 
 network-up: ## Démarrer le réseau Fabric
 	@echo "$(YELLOW)🚀 Démarrage du réseau Fabric...$(NC)"
-	cd $(NETWORK_DIR) && docker-compose down -v
-	cd $(NETWORK_DIR) && docker-compose up -d
+	cd $(NETWORK_DIR) && docker compose down -v
+	cd $(NETWORK_DIR) && docker compose up -d
 	@sleep 15
 	@echo "$(GREEN)✅ Réseau démarré$(NC)"
 	@docker ps --format "table {{.Names}}\t{{.Status}}"
 
 network-down: ## Arrêter le réseau Fabric
 	@echo "$(YELLOW)🛑 Arrêt du réseau...$(NC)"
-	cd $(NETWORK_DIR) && docker-compose down -v
+	cd $(NETWORK_DIR) && docker compose down -v
 	@echo "$(GREEN)✅ Réseau arrêté$(NC)"
 
 deploy-full: package ## Déploiement complet du chaincode
@@ -58,6 +58,10 @@ test-create: ## Créer un contrat de test
 	@echo "$(YELLOW)🧪 Création d'un contrat de test...$(NC)"
 	@bash $(SCRIPTS_DIR)/test-create-contract.sh
 	@echo "$(GREEN)✅ Test terminé$(NC)"
+
+create-contract: ## Créer un contrat réel sur la blockchain
+	@echo "$(YELLOW)📝 Création d'un contrat sur la blockchain...$(NC)"
+	@bash $(SCRIPTS_DIR)/create-contract-via-api.sh
 
 test-query: ## Interroger les contrats
 	@echo "$(YELLOW)🔍 Interrogation des contrats...$(NC)"

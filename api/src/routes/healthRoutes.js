@@ -2,9 +2,28 @@ const express = require('express');
 const router = express.Router();
 
 /**
- * @route   GET /api/health
- * @desc    Vérifier l'état de santé de l'API
- * @access  Public
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: Vérifier l'état de santé de l'API
+ *     tags: [Health]
+ *     description: Retourne l'état général de l'API et des services associés
+ *     responses:
+ *       200:
+ *         description: API en bonne santé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ *             example:
+ *               status: UP
+ *               timestamp: "2025-10-21T00:00:00.000Z"
+ *               uptime: 123.45
+ *               environment: development
+ *               version: "1.0.0"
+ *               services:
+ *                 api: UP
+ *                 blockchain: Connected
  */
 router.get('/', (req, res) => {
   res.json({

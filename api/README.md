@@ -31,6 +31,23 @@ npm start
 
 L'API sera accessible sur : `http://localhost:3000`
 
+## 📚 Documentation Interactive (Swagger)
+
+Une fois l'API démarrée, accédez à la **documentation Swagger UI** :
+
+```
+http://localhost:3000/api-docs
+```
+
+**Fonctionnalités Swagger :**
+- ✅ Tester tous les endpoints directement depuis le navigateur
+- ✅ Voir les modèles de données complets (ContratAgraire avec 73+ propriétés)
+- ✅ Consulter les exemples de requêtes/réponses
+- ✅ Télécharger la spécification OpenAPI 3.0.0 JSON
+- ✅ Importer dans Postman ou générer des clients SDK
+
+👉 **Voir le guide complet** : [SWAGGER.md](./SWAGGER.md)
+
 ## 📚 Endpoints
 
 ### Health Check

@@ -140,8 +140,8 @@ class ContractController {
     try {
       logger.info('Récupération de tous les contrats');
       
-      // Évaluer la transaction
-      const result = await fabricService.evaluateTransaction('lireTousLesContrats');
+      // Évaluer la transaction (méthode chaincode Java: listerContrats)
+      const result = await fabricService.evaluateTransaction('listerContrats');
       const contracts = JSON.parse(result);
       
       res.json({
@@ -168,8 +168,8 @@ class ContractController {
       
       logger.info('Recherche de contrats', { query });
       
-      // Évaluer la transaction
-      const result = await fabricService.evaluateTransaction('rechercherContrats', query);
+      // Évaluer la transaction (méthode chaincode Java: rechercherParProprietaire)
+      const result = await fabricService.evaluateTransaction('rechercherParProprietaire', query);
       const contracts = JSON.parse(result);
       
       res.json({
@@ -196,8 +196,8 @@ class ContractController {
       
       logger.info('Récupération des contrats du propriétaire', { ownerId });
       
-      // Évaluer la transaction
-      const result = await fabricService.evaluateTransaction('lireContratsParProprietaire', ownerId);
+      // Évaluer la transaction (méthode chaincode Java: rechercherParProprietaire)
+      const result = await fabricService.evaluateTransaction('rechercherParProprietaire', ownerId);
       const contracts = JSON.parse(result);
       
       res.json({
@@ -224,9 +224,15 @@ class ContractController {
       
       logger.info('Récupération des contrats du bénéficiaire', { beneficiaryId });
       
-      // Évaluer la transaction
-      const result = await fabricService.evaluateTransaction('lireContratsParBeneficiaire', beneficiaryId);
-      const contracts = JSON.parse(result);
+      // Note: Le chaincode n'a pas encore de méthode rechercherParBeneficiaire
+      // On récupère tous les contrats et on filtre côté API
+      const result = await fabricService.evaluateTransaction('listerContrats');
+      const allContracts = JSON.parse(result);
+      
+      const contracts = allContracts.filter(c => 
+        c.beneficiary && c.beneficiary.name && 
+        c.beneficiary.name.toLowerCase().includes(beneficiaryId.toLowerCase())
+      );
       
       res.json({
         success: true,
@@ -252,8 +258,8 @@ class ContractController {
       
       logger.info('Récupération de l\'historique du contrat', { id });
       
-      // Évaluer la transaction
-      const result = await fabricService.evaluateTransaction('lireHistoriqueContrat', id);
+      // Évaluer la transaction (méthode chaincode Java: obtenirHistorique)
+      const result = await fabricService.evaluateTransaction('obtenirHistorique', id);
       const history = JSON.parse(result);
       
       res.json({
