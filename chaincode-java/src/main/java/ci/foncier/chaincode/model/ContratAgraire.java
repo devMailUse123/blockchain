@@ -243,8 +243,48 @@ public class ContratAgraire {
     @Property()
     private List<ContractSignatory> contractSignatory;
 
+    // ============================================================
+    // WORKFLOW ET SIGNATURES NUMÉRIQUES
+    // ============================================================
+
+    @Property()
+    private String status; // DRAFT, SIGNED, APPROVED, VALIDATED, REJECTED, DELETED
+
+    @Property()
+    private Boolean isModifiable; // Le contrat peut-il être modifié ?
+
+    @Property()
+    private Boolean isDeletable; // Le contrat peut-il être supprimé ?
+
+    @Property()
+    private List<WorkflowAction> actions; // Historique des actions
+
+    @Property()
+    private List<PartySignature> signatures; // Signatures des parties (tablette)
+
+    @Property()
+    private ContractApprobation approbation; // Approbation par CVGFR/Préfet
+
+    @Property()
+    private ContractValidation validation; // Validation finale avec signature numérique
+
+    // Soft Delete
+    @Property()
+    private LocalDateTime deletedAt;
+
+    @Property()
+    private String deletedBy;
+
+    @Property()
+    private String deletedReason;
+
     public ContratAgraire() {
         this.contractSignatory = new ArrayList<>();
+        this.actions = new ArrayList<>();
+        this.signatures = new ArrayList<>();
+        this.status = "DRAFT";
+        this.isModifiable = true;
+        this.isDeletable = true;
     }
 
     // Constructor avec paramètres principaux
@@ -490,6 +530,41 @@ public class ContratAgraire {
 
     public List<ContractSignatory> getContractSignatory() { return contractSignatory; }
     public void setContractSignatory(List<ContractSignatory> contractSignatory) { this.contractSignatory = contractSignatory; }
+
+    // Workflow getters/setters
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public Boolean getIsModifiable() { return isModifiable; }
+    public void setIsModifiable(Boolean isModifiable) { this.isModifiable = isModifiable; }
+    public boolean isModifiable() { return Boolean.TRUE.equals(isModifiable); }
+    public void setModifiable(boolean modifiable) { this.isModifiable = modifiable; }
+
+    public Boolean getIsDeletable() { return isDeletable; }
+    public void setIsDeletable(Boolean isDeletable) { this.isDeletable = isDeletable; }
+    public boolean isDeletable() { return Boolean.TRUE.equals(isDeletable); }
+    public void setDeletable(boolean deletable) { this.isDeletable = deletable; }
+
+    public List<WorkflowAction> getActions() { return actions; }
+    public void setActions(List<WorkflowAction> actions) { this.actions = actions; }
+
+    public List<PartySignature> getSignatures() { return signatures; }
+    public void setSignatures(List<PartySignature> signatures) { this.signatures = signatures; }
+
+    public ContractApprobation getApprobation() { return approbation; }
+    public void setApprobation(ContractApprobation approbation) { this.approbation = approbation; }
+
+    public ContractValidation getValidation() { return validation; }
+    public void setValidation(ContractValidation validation) { this.validation = validation; }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+
+    public String getDeletedBy() { return deletedBy; }
+    public void setDeletedBy(String deletedBy) { this.deletedBy = deletedBy; }
+
+    public String getDeletedReason() { return deletedReason; }
+    public void setDeletedReason(String deletedReason) { this.deletedReason = deletedReason; }
 
     @Override
     public boolean equals(Object o) {

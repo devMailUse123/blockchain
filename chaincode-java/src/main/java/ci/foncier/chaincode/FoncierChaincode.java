@@ -82,6 +82,19 @@ public class FoncierChaincode implements ContractInterface {
                 contrat.setCodeContract(genererCodeContrat(contrat));
             }
             
+            // Initialiser le workflow
+            contrat.setStatus("DRAFT");
+            contrat.setModifiable(true);
+            contrat.setDeletable(true);
+            
+            // Créer l'action CREATE
+            WorkflowAction createAction = new WorkflowAction();
+            createAction.setType("CREATE");
+            createAction.setTimestamp(contrat.getCreationDate());
+            createAction.setTransactionId(context.getStub().getTxId());
+            createAction.setNewStatus("DRAFT");
+            contrat.getActions().add(createAction);
+            
             String contratJsonSave = objectMapper.writeValueAsString(contrat);
             context.getStub().putStringState(contrat.getId(), contratJsonSave);
             context.getStub().setEvent("ContratCree", contrat.getId().getBytes());
@@ -122,9 +135,32 @@ public class FoncierChaincode implements ContractInterface {
         
         try {
             ContratAgraire contratExistant = lireContrat(context, contratId);
+            
+            // Vérifier si le contrat est modifiable
+            if (!contratExistant.isModifiable()) {
+                throw new ChaincodeException("Le contrat " + contratId + " ne peut plus être modifié (statut: " + 
+                    contratExistant.getStatus() + ")", "CONTRAT_NOT_MODIFIABLE");
+            }
+            
             ContratAgraire contratModifie = objectMapper.readValue(contratJson, ContratAgraire.class);
             contratModifie.setId(contratId);
             contratModifie.setCreationDate(contratExistant.getCreationDate());
+            
+            // Préserver le workflow existant
+            contratModifie.setStatus(contratExistant.getStatus());
+            contratModifie.setModifiable(contratExistant.isModifiable());
+            contratModifie.setDeletable(contratExistant.isDeletable());
+            contratModifie.setActions(contratExistant.getActions());
+            contratModifie.setSignatures(contratExistant.getSignatures());
+            contratModifie.setApprobation(contratExistant.getApprobation());
+            contratModifie.setValidation(contratExistant.getValidation());
+            
+            // Ajouter une action MODIFY
+            WorkflowAction modifyAction = new WorkflowAction();
+            modifyAction.setType("MODIFY");
+            modifyAction.setTimestamp(LocalDateTime.now());
+            modifyAction.setTransactionId(context.getStub().getTxId());
+            contratModifie.getActions().add(modifyAction);
             
             String contratJsonSave = objectMapper.writeValueAsString(contratModifie);
             context.getStub().putStringState(contratId, contratJsonSave);
@@ -142,15 +178,45 @@ public class FoncierChaincode implements ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public void supprimerContrat(final Context context, final String contratId) {
+    public void supprimerContrat(final Context context, final String contratId, final String actorJson, final String reason) {
         logger.info("Suppression du contrat: {}", contratId);
         
         try {
-            lireContrat(context, contratId);
-            context.getStub().delState(contratId);
+            ContratAgraire contrat = lireContrat(context, contratId);
+            
+            // Vérifier si le contrat est supprimable
+            if (!contrat.isDeletable()) {
+                throw new ChaincodeException("Le contrat " + contratId + " ne peut pas être supprimé (statut: " + 
+                    contrat.getStatus() + ")", "CONTRAT_NOT_DELETABLE");
+            }
+            
+            Actor actor = objectMapper.readValue(actorJson, Actor.class);
+            
+            // Soft delete: marquer comme supprimé au lieu de supprimer
+            contrat.setDeletedAt(LocalDateTime.now());
+            contrat.setDeletedBy(actor.getUserId());
+            contrat.setDeletedReason(reason);
+            contrat.setStatus("DELETED");
+            contrat.setModifiable(false);
+            contrat.setDeletable(false);
+            
+            // Ajouter une action DELETE
+            WorkflowAction deleteAction = new WorkflowAction();
+            deleteAction.setType("DELETE");
+            deleteAction.setActor(actor);
+            deleteAction.setTimestamp(LocalDateTime.now());
+            deleteAction.setComment(reason);
+            deleteAction.setPreviousStatus(contrat.getStatus());
+            deleteAction.setNewStatus("DELETED");
+            deleteAction.setTransactionId(context.getStub().getTxId());
+            contrat.getActions().add(deleteAction);
+            
+            // Sauvegarder au lieu de supprimer (audit trail)
+            String contratJsonSave = objectMapper.writeValueAsString(contrat);
+            context.getStub().putStringState(contratId, contratJsonSave);
             context.getStub().setEvent("ContratSupprime", contratId.getBytes());
             
-            logger.info("Contrat supprimé avec succès: {}", contratId);
+            logger.info("Contrat marqué comme supprimé avec succès: {}", contratId);
             
         } catch (ChaincodeException e) {
             throw e;
@@ -158,6 +224,240 @@ public class FoncierChaincode implements ContractInterface {
             logger.error("Erreur lors de la suppression du contrat: {}", e.getMessage());
             throw new ChaincodeException("Erreur de suppression: " + e.getMessage(), "DELETE_ERROR");
         }
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public ContratAgraire ajouterSignature(final Context context, final String contratId, final String signatureJson) {
+        logger.info("Ajout d'une signature pour le contrat: {}", contratId);
+        
+        try {
+            ContratAgraire contrat = lireContrat(context, contratId);
+            
+            if (!"DRAFT".equals(contrat.getStatus()) && !"SIGNED".equals(contrat.getStatus())) {
+                throw new ChaincodeException("Les signatures ne peuvent être ajoutées qu'aux contrats en statut DRAFT ou SIGNED", 
+                    "INVALID_STATUS");
+            }
+            
+            PartySignature signature = objectMapper.readValue(signatureJson, PartySignature.class);
+            contrat.getSignatures().add(signature);
+            
+            // Vérifier si toutes les signatures requises sont présentes
+            if (hasAllRequiredSignatures(contrat)) {
+                contrat.setStatus("SIGNED");
+                
+                WorkflowAction signAction = new WorkflowAction();
+                signAction.setType("SIGN");
+                signAction.setTimestamp(LocalDateTime.now());
+                signAction.setPreviousStatus("DRAFT");
+                signAction.setNewStatus("SIGNED");
+                signAction.setTransactionId(context.getStub().getTxId());
+                signAction.setComment("Toutes les signatures requises ont été collectées");
+                contrat.getActions().add(signAction);
+                
+                logger.info("Contrat {} complètement signé", contratId);
+            }
+            
+            String contratJsonSave = objectMapper.writeValueAsString(contrat);
+            context.getStub().putStringState(contratId, contratJsonSave);
+            context.getStub().setEvent("SignatureAjoutee", contratId.getBytes());
+            
+            return contrat;
+            
+        } catch (ChaincodeException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Erreur lors de l'ajout de signature: {}", e.getMessage());
+            throw new ChaincodeException("Erreur signature: " + e.getMessage(), "SIGNATURE_ERROR");
+        }
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public ContratAgraire approuverContrat(final Context context, final String contratId, final String approbationJson) {
+        logger.info("Approbation du contrat: {}", contratId);
+        
+        try {
+            ContratAgraire contrat = lireContrat(context, contratId);
+            
+            if (!"SIGNED".equals(contrat.getStatus())) {
+                throw new ChaincodeException("Seuls les contrats signés peuvent être approuvés", "INVALID_STATUS");
+            }
+            
+            ContractApprobation approbation = objectMapper.readValue(approbationJson, ContractApprobation.class);
+            contrat.setApprobation(approbation);
+            contrat.setStatus("APPROVED");
+            
+            WorkflowAction approveAction = new WorkflowAction();
+            approveAction.setType("APPROVE");
+            Actor approver = new Actor();
+            approver.setUserId(approbation.getApprovedBy());
+            approver.setUserName(approbation.getApproverName());
+            approver.setRole(approbation.getApproverRole());
+            approveAction.setActor(approver);
+            approveAction.setTimestamp(approbation.getApprovedAt());
+            approveAction.setSignature(approbation.getDigitalSignature());
+            approveAction.setPreviousStatus("SIGNED");
+            approveAction.setNewStatus("APPROVED");
+            approveAction.setTransactionId(context.getStub().getTxId());
+            contrat.getActions().add(approveAction);
+            
+            String contratJsonSave = objectMapper.writeValueAsString(contrat);
+            context.getStub().putStringState(contratId, contratJsonSave);
+            context.getStub().setEvent("ContratApprouve", contratId.getBytes());
+            
+            logger.info("Contrat approuvé avec succès: {}", contratId);
+            return contrat;
+            
+        } catch (ChaincodeException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Erreur lors de l'approbation: {}", e.getMessage());
+            throw new ChaincodeException("Erreur approbation: " + e.getMessage(), "APPROVAL_ERROR");
+        }
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public ContratAgraire validerContrat(final Context context, final String contratId, final String validationJson) {
+        logger.info("Validation finale du contrat: {}", contratId);
+        
+        try {
+            ContratAgraire contrat = lireContrat(context, contratId);
+            
+            if (!"APPROVED".equals(contrat.getStatus())) {
+                throw new ChaincodeException("Seuls les contrats approuvés peuvent être validés", "INVALID_STATUS");
+            }
+            
+            ContractValidation validation = objectMapper.readValue(validationJson, ContractValidation.class);
+            
+            // Vérifier le hash du document
+            if (validation.getDocumentHash() == null || validation.getDocumentHash().isEmpty()) {
+                throw new ChaincodeException("Le hash SHA-256 du document est requis", "MISSING_HASH");
+            }
+            
+            if (validation.getDigitalSignature() == null || validation.getDigitalSignature().isEmpty()) {
+                throw new ChaincodeException("La signature ECDSA est requise", "MISSING_SIGNATURE");
+            }
+            
+            contrat.setValidation(validation);
+            contrat.setStatus("VALIDATED");
+            contrat.setModifiable(false); // Plus de modification possible
+            contrat.setDeletable(false); // Plus de suppression possible
+            
+            WorkflowAction validateAction = new WorkflowAction();
+            validateAction.setType("VALIDATE");
+            Actor validator = new Actor();
+            validator.setUserId(validation.getValidatedBy());
+            validator.setUserName(validation.getValidatorName());
+            validator.setRole("VALIDATOR");
+            validateAction.setActor(validator);
+            validateAction.setTimestamp(validation.getValidatedAt());
+            validateAction.setSignature(validation.getDigitalSignature());
+            validateAction.setPreviousStatus("APPROVED");
+            validateAction.setNewStatus("VALIDATED");
+            validateAction.setTransactionId(context.getStub().getTxId());
+            validateAction.setComment("Document hash: " + validation.getDocumentHash());
+            contrat.getActions().add(validateAction);
+            
+            String contratJsonSave = objectMapper.writeValueAsString(contrat);
+            context.getStub().putStringState(contratId, contratJsonSave);
+            context.getStub().setEvent("ContratValide", contratId.getBytes());
+            
+            logger.info("Contrat validé et scellé avec succès: {}", contratId);
+            return contrat;
+            
+        } catch (ChaincodeException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Erreur lors de la validation: {}", e.getMessage());
+            throw new ChaincodeException("Erreur validation: " + e.getMessage(), "VALIDATION_ERROR");
+        }
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public ContratAgraire rejeterContrat(final Context context, final String contratId, final String actorJson, final String reason) {
+        logger.info("Rejet du contrat: {}", contratId);
+        
+        try {
+            ContratAgraire contrat = lireContrat(context, contratId);
+            Actor actor = objectMapper.readValue(actorJson, Actor.class);
+            
+            String previousStatus = contrat.getStatus();
+            contrat.setStatus("REJECTED");
+            contrat.setModifiable(true); // Permettre la modification après rejet
+            
+            WorkflowAction rejectAction = new WorkflowAction();
+            rejectAction.setType("REJECT");
+            rejectAction.setActor(actor);
+            rejectAction.setTimestamp(LocalDateTime.now());
+            rejectAction.setComment(reason);
+            rejectAction.setPreviousStatus(previousStatus);
+            rejectAction.setNewStatus("REJECTED");
+            rejectAction.setTransactionId(context.getStub().getTxId());
+            contrat.getActions().add(rejectAction);
+            
+            String contratJsonSave = objectMapper.writeValueAsString(contrat);
+            context.getStub().putStringState(contratId, contratJsonSave);
+            context.getStub().setEvent("ContratRejete", contratId.getBytes());
+            
+            logger.info("Contrat rejeté: {}", contratId);
+            return contrat;
+            
+        } catch (ChaincodeException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Erreur lors du rejet: {}", e.getMessage());
+            throw new ChaincodeException("Erreur rejet: " + e.getMessage(), "REJECT_ERROR");
+        }
+    }
+
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public String verifierContrat(final Context context, final String contratId) {
+        logger.info("Vérification de l'intégrité du contrat: {}", contratId);
+        
+        try {
+            ContratAgraire contrat = lireContrat(context, contratId);
+            Map<String, Object> verification = new HashMap<>();
+            
+            verification.put("contratId", contratId);
+            verification.put("status", contrat.getStatus());
+            verification.put("isModifiable", contrat.isModifiable());
+            verification.put("isDeletable", contrat.isDeletable());
+            verification.put("nombreSignatures", contrat.getSignatures().size());
+            verification.put("aApprobation", contrat.getApprobation() != null);
+            verification.put("aValidation", contrat.getValidation() != null);
+            verification.put("nombreActions", contrat.getActions().size());
+            
+            if (contrat.getValidation() != null) {
+                verification.put("documentHash", contrat.getValidation().getDocumentHash());
+                verification.put("signatureAlgorithm", contrat.getValidation().getSignatureAlgorithm());
+                verification.put("validatedBy", contrat.getValidation().getValidatorName());
+                verification.put("validatedAt", contrat.getValidation().getValidatedAt());
+                verification.put("blockchainTimestamp", contrat.getValidation().getBlockchainTimestamp());
+            }
+            
+            verification.put("integrite", "OK");
+            verification.put("message", "Contrat vérifié avec succès");
+            
+            return objectMapper.writeValueAsString(verification);
+            
+        } catch (Exception e) {
+            logger.error("Erreur lors de la vérification: {}", e.getMessage());
+            throw new ChaincodeException("Erreur vérification: " + e.getMessage(), "VERIFICATION_ERROR");
+        }
+    }
+
+    private boolean hasAllRequiredSignatures(ContratAgraire contrat) {
+        boolean hasOwner = false;
+        boolean hasBeneficiary = false;
+        
+        for (PartySignature sig : contrat.getSignatures()) {
+            if ("OWNER".equals(sig.getPartyType())) {
+                hasOwner = true;
+            } else if ("BENEFICIARY".equals(sig.getPartyType())) {
+                hasBeneficiary = true;
+            }
+        }
+        
+        return hasOwner && hasBeneficiary;
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)

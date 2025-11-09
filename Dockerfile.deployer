@@ -1,0 +1,80 @@
+# ============================================================================
+# Dockerfile.deployer - Image de déploiement Hyperledger Fabric
+# ============================================================================
+# 
+# Cette image contient TOUT le nécessaire pour déployer le réseau :
+# - Scripts de génération certificats
+# - Scripts création channels
+# - Chaincode compilé (.gz)
+# - Configuration réseau
+# - Fabric binaries (cryptogen, configtxgen, peer)
+#
+# Usage:
+#   docker build -f Dockerfile.deployer -t foncier-deployer:1.0 .
+#   docker run foncier-deployer:1.0 deploy-all
+#
+# ============================================================================
+
+FROM hyperledger/fabric-tools:3.1.1
+
+LABEL maintainer="AFOR Innovation"
+LABEL description="Deployer image pour réseau Fabric - Sécurisation Foncière CI"
+LABEL version="1.0.0"
+
+# Variables d'environnement
+ENV FABRIC_CFG_PATH=/etc/hyperledger/fabric \
+    CHANNEL_NAME=contrat-agraire \
+    CHAINCODE_NAME=foncier-chaincode \
+    CHAINCODE_VERSION=4.0 \
+    PROJECT_ROOT=/opt/blockchain
+
+# Installer dépendances supplémentaires
+RUN apt-get update && apt-get install -y \
+    jq \
+    curl \
+    netcat-openbsd \
+    make \
+    rsync \
+    && rm -rf /var/lib/apt/lists/*
+
+# Créer structure de répertoires
+WORKDIR ${PROJECT_ROOT}
+
+# Copier la configuration Fabric
+COPY network/configtx.yaml ${FABRIC_CFG_PATH}/configtx.yaml
+COPY network/crypto-config.yaml ${FABRIC_CFG_PATH}/crypto-config.yaml
+COPY config/core.yaml ${FABRIC_CFG_PATH}/core.yaml
+
+# Copier TOUS les scripts de déploiement
+COPY scripts/ ${PROJECT_ROOT}/scripts/
+RUN chmod +x ${PROJECT_ROOT}/scripts/*.sh
+
+# Copier le Makefile
+COPY Makefile ${PROJECT_ROOT}/Makefile
+
+# Copier le chaincode compilé (sera généré par CI/CD)
+# Si le .tar.gz existe déjà, le copier
+COPY chaincode-java/target/*.jar ${PROJECT_ROOT}/chaincode/ 2>/dev/null || true
+COPY chaincode-java/pom.xml ${PROJECT_ROOT}/chaincode-java/pom.xml
+COPY chaincode-java/src/ ${PROJECT_ROOT}/chaincode-java/src/
+
+# Copier les certificats pré-générés (si existants)
+# En production, ils seront générés au premier lancement
+COPY network/organizations/ ${PROJECT_ROOT}/network/organizations/ 2>/dev/null || true
+
+# Créer répertoires pour artefacts générés
+RUN mkdir -p \
+    ${PROJECT_ROOT}/network/channel-artifacts \
+    ${PROJECT_ROOT}/network/organizations/ordererOrganizations \
+    ${PROJECT_ROOT}/network/organizations/peerOrganizations \
+    ${PROJECT_ROOT}/chaincode/packages
+
+# Script d'entrypoint personnalisé
+COPY docker/deployer-entrypoint.sh /usr/local/bin/deployer-entrypoint.sh
+RUN chmod +x /usr/local/bin/deployer-entrypoint.sh
+
+# Volumes pour persistence
+VOLUME ["${PROJECT_ROOT}/network/organizations", "${PROJECT_ROOT}/network/channel-artifacts"]
+
+ENTRYPOINT ["/usr/local/bin/deployer-entrypoint.sh"]
+CMD ["help"]

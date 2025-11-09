@@ -1,0 +1,274 @@
+# ============================================================================
+# docker-compose.ci.yml - Pour CI/CD et déploiement automatisé
+# ============================================================================
+#
+# Architecture simplifiée avec init containers pour génération automatique
+# des certificats et artefacts
+#
+# Usage:
+#   export REGISTRY=ghcr.io/aforinnov VERSION=1.0.0
+#   docker compose -f docker-compose.ci.yml up -d
+#
+# ============================================================================
+
+version: '3.9'
+
+networks:
+  foncier:
+    name: foncier-network
+
+volumes:
+  fabric-crypto:
+  fabric-artifacts:
+  fabric-chaincode:
+  orderer-data:
+  peer-afor-data:
+  peer-cvgfr-data:
+  peer-prefet-data:
+  couchdb-afor-data:
+  couchdb-cvgfr-data:
+  couchdb-prefet-data:
+
+services:
+
+  # Init : Génère certificats + genesis + package chaincode
+  init-deployer:
+    image: ${REGISTRY:-ghcr.io/aforinnov}/foncier-deployer:${VERSION:-latest}
+    container_name: init-deployer
+    command: deploy-all
+    volumes:
+      - fabric-crypto:/opt/blockchain/network/organizations
+      - fabric-artifacts:/opt/blockchain/network/channel-artifacts
+      - fabric-chaincode:/opt/blockchain/chaincode/packages
+    networks:
+      - foncier
+
+  # Orderer
+  orderer.foncier.ci:
+    image: hyperledger/fabric-orderer:3.1.1
+    container_name: orderer.foncier.ci
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererOrg
+      - ORDERER_GENERAL_LOCALMSPDIR=/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/ca.crt]
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/server.key
+      - ORDERER_ADMIN_TLS_ROOTCAS=[/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:7053
+    volumes:
+      - fabric-crypto:/crypto:ro
+      - orderer-data:/var/hyperledger/production
+    ports:
+      - "7050:7050"
+      - "7053:7053"
+    networks:
+      - foncier
+    depends_on:
+      init-deployer:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # CouchDB AFOR
+  couchdb-afor:
+    image: couchdb:3.3
+    container_name: couchdb-afor
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    volumes:
+      - couchdb-afor-data:/opt/couchdb/data
+    ports:
+      - "5984:5984"
+    networks:
+      - foncier
+    restart: unless-stopped
+
+  # Peer AFOR
+  peer0.afor.foncier.ci:
+    image: hyperledger/fabric-peer:3.1.1
+    container_name: peer0.afor.foncier.ci
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.afor.foncier.ci
+      - CORE_PEER_ADDRESS=peer0.afor.foncier.ci:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.afor.foncier.ci:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.afor.foncier.ci:7051
+      - CORE_PEER_LOCALMSPID=AFOROrg
+      - CORE_PEER_MSPCONFIGPATH=/crypto/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/crypto/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/crypto/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/crypto/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/tls/ca.crt
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb-afor:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - fabric-crypto:/crypto:ro
+      - peer-afor-data:/var/hyperledger/production
+    ports:
+      - "7051:7051"
+    networks:
+      - foncier
+    depends_on:
+      - orderer.foncier.ci
+      - couchdb-afor
+    restart: unless-stopped
+
+  # CouchDB CVGFR
+  couchdb-cvgfr:
+    image: couchdb:3.3
+    container_name: couchdb-cvgfr
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    volumes:
+      - couchdb-cvgfr-data:/opt/couchdb/data
+    ports:
+      - "6984:5984"
+    networks:
+      - foncier
+    restart: unless-stopped
+
+  # Peer CVGFR
+  peer0.cvgfr.foncier.ci:
+    image: hyperledger/fabric-peer:3.1.1
+    container_name: peer0.cvgfr.foncier.ci
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.cvgfr.foncier.ci
+      - CORE_PEER_ADDRESS=peer0.cvgfr.foncier.ci:8051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:8051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.cvgfr.foncier.ci:8052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:8052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.cvgfr.foncier.ci:8051
+      - CORE_PEER_LOCALMSPID=CVGFROrg
+      - CORE_PEER_MSPCONFIGPATH=/crypto/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/crypto/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/crypto/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/crypto/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/tls/ca.crt
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb-cvgfr:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - fabric-crypto:/crypto:ro
+      - peer-cvgfr-data:/var/hyperledger/production
+    ports:
+      - "8051:8051"
+    networks:
+      - foncier
+    depends_on:
+      - orderer.foncier.ci
+      - couchdb-cvgfr
+    restart: unless-stopped
+
+  # CouchDB PREFET
+  couchdb-prefet:
+    image: couchdb:3.3
+    container_name: couchdb-prefet
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    volumes:
+      - couchdb-prefet-data:/opt/couchdb/data
+    ports:
+      - "7984:5984"
+    networks:
+      - foncier
+    restart: unless-stopped
+
+  # Peer PREFET
+  peer0.prefet.foncier.ci:
+    image: hyperledger/fabric-peer:3.1.1
+    container_name: peer0.prefet.foncier.ci
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.prefet.foncier.ci
+      - CORE_PEER_ADDRESS=peer0.prefet.foncier.ci:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.prefet.foncier.ci:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.prefet.foncier.ci:9051
+      - CORE_PEER_LOCALMSPID=PREFETOrg
+      - CORE_PEER_MSPCONFIGPATH=/crypto/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/crypto/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/crypto/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/crypto/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/tls/ca.crt
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb-prefet:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - fabric-crypto:/crypto:ro
+      - peer-prefet-data:/var/hyperledger/production
+    ports:
+      - "9051:9051"
+    networks:
+      - foncier
+    depends_on:
+      - orderer.foncier.ci
+      - couchdb-prefet
+    restart: unless-stopped
+
+  # Post-deploy : Join channel + Install chaincode
+  post-deploy:
+    image: ${REGISTRY:-ghcr.io/aforinnov}/foncier-deployer:${VERSION:-latest}
+    container_name: post-deploy
+    command: sh -c "sleep 30 && join-channel && install-chaincode"
+    volumes:
+      - fabric-crypto:/opt/blockchain/network/organizations:ro
+      - fabric-artifacts:/opt/blockchain/network/channel-artifacts:ro
+      - fabric-chaincode:/opt/blockchain/chaincode/packages:ro
+    networks:
+      - foncier
+    depends_on:
+      - peer0.afor.foncier.ci
+      - peer0.cvgfr.foncier.ci
+      - peer0.prefet.foncier.ci
+
+  # API REST
+  api-rest:
+    image: ${REGISTRY:-ghcr.io/aforinnov}/foncier-api:${VERSION:-latest}
+    container_name: api-rest
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - CHANNEL_NAME=contrat-agraire
+      - CHAINCODE_NAME=foncier-chaincode
+      - ORG_NAME=afor
+    volumes:
+      - fabric-crypto:/app/network/organizations:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - foncier
+    depends_on:
+      post-deploy:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

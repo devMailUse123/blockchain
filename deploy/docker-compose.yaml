@@ -282,3 +282,38 @@ services:
       - orderer.foncier.ci
     networks:
       - foncier
+
+  # ============================================================================
+  # API REST - Interface HTTP pour le réseau Fabric
+  # ============================================================================
+  api-rest:
+    container_name: api-rest
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    image: foncier-api:1.0
+    labels:
+      service: foncier-api
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=info
+      - CHANNEL_NAME=contrat-agraire
+      - CHAINCODE_NAME=foncier-chaincode
+      - ORG_NAME=afor
+      - PEER_ENDPOINT=peer0.afor.foncier.ci:7051
+      - ORDERER_ENDPOINT=orderer.foncier.ci:7050
+    volumes:
+      - ../api/logs:/app/logs
+      - ../network/organizations:/app/network/organizations:ro
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - peer0.afor.foncier.ci
+      - peer0.cvgfr.foncier.ci
+      - peer0.prefet.foncier.ci
+      - orderer.foncier.ci
+    networks:
+      - foncier
+    restart: unless-stopped
