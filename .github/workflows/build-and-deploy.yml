@@ -186,48 +186,29 @@ jobs:
           echo "${{ secrets.VM1_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 18.194.235.149 >> ~/.ssh/known_hosts
+          # Test SSH connection
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ubuntu@18.194.235.149 "echo 'SSH OK'"
       
       - name: Extract version
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
       
       - name: Deploy to VM1
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          ssh ubuntu@18.194.235.149 << 'EOF'
-            set -e
-            
-            # Variables
-            export REGISTRY=ghcr.io/aforinnov
-            export VERSION=${{ steps.version.outputs.VERSION }}
-            
-            # Créer répertoire si nécessaire
-            mkdir -p /opt/blockchain
-            cd /opt/blockchain
-            
-            # Télécharger docker-compose
-            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.production.yml \
-              -o docker-compose.yml
-            
-            # Login to registry
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Pull latest images
-            docker compose pull
-            
-            # Stop old containers
-            docker compose down
-            
-            # Start new deployment
-            docker compose up -d
-            
-            # Wait for health check
-            sleep 30
-            
-            # Verify API
-            curl -f http://localhost:3000/health || exit 1
-            
-            echo "✅ Deployment successful!"
-          EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ubuntu@18.194.235.149 \
+            "export REGISTRY=ghcr.io/aforinnov && \
+             export VERSION=$VERSION && \
+             mkdir -p /opt/blockchain && \
+             cd /opt/blockchain && \
+             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.ci.yml -o docker-compose.yml && \
+             docker compose pull && \
+             docker compose down || true && \
+             docker compose up -d && \
+             sleep 30 && \
+             curl -f http://localhost:3000/health && \
+             echo '✅ Deployment successful!'"
       
       - name: Verify deployment
         run: |
