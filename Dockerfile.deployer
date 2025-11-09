@@ -39,28 +39,31 @@ RUN apt-get update && apt-get install -y \
 
 # Créer structure de répertoires
 WORKDIR ${PROJECT_ROOT}
+RUN mkdir -p \
+    ${FABRIC_CFG_PATH} \
+    ${PROJECT_ROOT}/scripts \
+    ${PROJECT_ROOT}/chaincode \
+    ${PROJECT_ROOT}/chaincode-java/target \
+    ${PROJECT_ROOT}/network/channel-artifacts \
+    ${PROJECT_ROOT}/network/organizations
 
 # Copier la configuration Fabric
 COPY network/configtx.yaml ${FABRIC_CFG_PATH}/configtx.yaml
 COPY network/crypto-config.yaml ${FABRIC_CFG_PATH}/crypto-config.yaml
-COPY config/core.yaml ${FABRIC_CFG_PATH}/core.yaml
 
-# Copier TOUS les scripts de déploiement
-COPY scripts/ ${PROJECT_ROOT}/scripts/
+# Copier les scripts de déploiement
+COPY scripts/*.sh ${PROJECT_ROOT}/scripts/
 RUN chmod +x ${PROJECT_ROOT}/scripts/*.sh
 
 # Copier le Makefile
 COPY Makefile ${PROJECT_ROOT}/Makefile
 
-# Copier le chaincode compilé (sera généré par CI/CD)
-# Si le .tar.gz existe déjà, le copier
-COPY chaincode-java/target/*.jar ${PROJECT_ROOT}/chaincode/ 2>/dev/null || true
-COPY chaincode-java/pom.xml ${PROJECT_ROOT}/chaincode-java/pom.xml
-COPY chaincode-java/src/ ${PROJECT_ROOT}/chaincode-java/src/
+# Copier le code source chaincode (pour rebuild si nécessaire)
+COPY chaincode-java/pom.xml ${PROJECT_ROOT}/chaincode-java/
+COPY chaincode-java/src ${PROJECT_ROOT}/chaincode-java/src
 
-# Copier les certificats pré-générés (si existants)
-# En production, ils seront générés au premier lancement
-COPY network/organizations/ ${PROJECT_ROOT}/network/organizations/ 2>/dev/null || true
+# Copier le JAR compilé (téléchargé depuis artifact dans CI/CD)
+COPY chaincode-java/target/*.jar ${PROJECT_ROOT}/chaincode/
 
 # Créer répertoires pour artefacts générés
 RUN mkdir -p \

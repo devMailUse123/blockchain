@@ -22,7 +22,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Installer les dépendances Node.js
-RUN npm ci --only=production
+RUN npm ci --omit=dev || npm install --production
 
 # Copier le code source
 COPY . .
