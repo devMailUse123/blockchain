@@ -15,11 +15,11 @@
 #
 # ============================================================================
 
-FROM hyperledger/fabric-tools:3.1.1
+FROM hyperledger/fabric-tools:2.5.14
 
 LABEL maintainer="AFOR Innovation"
 LABEL description="Deployer image pour réseau Fabric - Sécurisation Foncière CI"
-LABEL version="1.0.0"
+LABEL version="1.0.1"
 
 # Variables d'environnement
 ENV FABRIC_CFG_PATH=/etc/hyperledger/fabric \

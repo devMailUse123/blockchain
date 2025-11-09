@@ -45,7 +45,7 @@ services:
 
   # Orderer
   orderer.foncier.ci:
-    image: hyperledger/fabric-orderer:3.1.1
+    image: hyperledger/fabric-orderer:2.5.14
     container_name: orderer.foncier.ci
     environment:
       - FABRIC_LOGGING_SPEC=INFO
@@ -94,7 +94,7 @@ services:
 
   # Peer AFOR
   peer0.afor.foncier.ci:
-    image: hyperledger/fabric-peer:3.1.1
+    image: hyperledger/fabric-peer:2.5.14
     container_name: peer0.afor.foncier.ci
     environment:
       - FABRIC_LOGGING_SPEC=INFO
@@ -145,7 +145,7 @@ services:
 
   # Peer CVGFR
   peer0.cvgfr.foncier.ci:
-    image: hyperledger/fabric-peer:3.1.1
+    image: hyperledger/fabric-peer:2.5.14
     container_name: peer0.cvgfr.foncier.ci
     environment:
       - FABRIC_LOGGING_SPEC=INFO
@@ -196,7 +196,7 @@ services:
 
   # Peer PREFET
   peer0.prefet.foncier.ci:
-    image: hyperledger/fabric-peer:3.1.1
+    image: hyperledger/fabric-peer:2.5.14
     container_name: peer0.prefet.foncier.ci
     environment:
       - FABRIC_LOGGING_SPEC=INFO
