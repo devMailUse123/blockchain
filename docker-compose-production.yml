@@ -2,7 +2,7 @@ version: '3.8'
 
 # ============================================================================
 # DOCKER COMPOSE - PRODUCTION STACK
-# Réseau Hyperledger Fabric 3.1.1 - Blockchain Foncier Côte d'Ivoire
+# Réseau Hyperledger Fabric 2.5.14 - Blockchain Foncier Côte d'Ivoire
 # ============================================================================
 # Ce fichier est optimisé pour un déploiement en production
 # Il inclut des configurations de monitoring, healthchecks et ressources
@@ -47,7 +47,7 @@ services:
   # ==========================================================================
   orderer.foncier.ci:
     container_name: orderer.foncier.ci
-    image: hyperledger/fabric-orderer:3.1.1
+    image: hyperledger/fabric-orderer:2.5.14
     labels:
       service: hyperledger-fabric
       component: orderer
@@ -106,7 +106,7 @@ services:
   # ==========================================================================
   peer0.afor.foncier.ci:
     container_name: peer0.afor.foncier.ci
-    image: hyperledger/fabric-peer:3.1.1
+    image: hyperledger/fabric-peer:2.5.14
     labels:
       service: hyperledger-fabric
       component: peer
@@ -203,7 +203,7 @@ services:
   # ==========================================================================
   peer0.cvgfr.foncier.ci:
     container_name: peer0.cvgfr.foncier.ci
-    image: hyperledger/fabric-peer:3.1.1
+    image: hyperledger/fabric-peer:2.5.14
     labels:
       service: hyperledger-fabric
       component: peer
@@ -300,7 +300,7 @@ services:
   # ==========================================================================
   peer0.prefet.foncier.ci:
     container_name: peer0.prefet.foncier.ci
-    image: hyperledger/fabric-peer:3.1.1
+    image: hyperledger/fabric-peer:2.5.14
     labels:
       service: hyperledger-fabric
       component: peer
@@ -397,7 +397,7 @@ services:
   # ==========================================================================
   cli:
     container_name: cli
-    image: hyperledger/fabric-tools:3.1.1
+    image: hyperledger/fabric-tools:2.5.14
     labels:
       service: hyperledger-fabric
       component: cli
