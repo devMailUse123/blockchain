@@ -1,0 +1,59 @@
+---
+# Playbook MASTER: Déploiement complet du réseau Hyperledger Fabric
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/deploy-all.yml
+
+- name: "===== PHASE 1: Installation des Prérequis ====="
+  import_playbook: 00-prerequisites.yml
+
+- name: "===== PHASE 2: Installation de Docker ====="
+  import_playbook: 01-install-docker.yml
+
+- name: "===== PHASE 3: Configuration du Pare-feu ====="
+  import_playbook: 02-configure-firewall.yml
+
+- name: "===== PHASE 4: Copie du Matériel Cryptographique ====="
+  import_playbook: 03-copy-crypto-material.yml
+
+- name: "===== PHASE 5: Déploiement des Conteneurs ====="
+  import_playbook: 04-deploy-containers.yml
+
+- name: "===== PHASE 6: Création du Channel ====="
+  import_playbook: 05-create-channel.yml
+
+- name: "===== PHASE 7: Déploiement du Chaincode ====="
+  import_playbook: 06-deploy-chaincode.yml
+
+- name: "===== PHASE 8: Déploiement de l'API REST ====="
+  import_playbook: 07-deploy-api.yml
+
+- name: "===== DÉPLOIEMENT TERMINÉ ====="
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  
+  tasks:
+    - name: "🎉 Résumé Final du Déploiement"
+      debug:
+        msg:
+          - "════════════════════════════════════════════════════════════"
+          - "          DÉPLOIEMENT HYPERLEDGER FABRIC RÉUSSI !          "
+          - "════════════════════════════════════════════════════════════"
+          - ""
+          - "📦 Réseau Déployé:"
+          - "   • Orderer: {{ hostvars['vm4-orderer']['ansible_host'] }}:7050"
+          - "   • Peer AFOR: {{ hostvars['vm1-afor']['ansible_host'] }}:7051"
+          - "   • Peer CVGFR: {{ hostvars['vm2-cvgfr']['ansible_host'] }}:8051"
+          - "   • Peer PREFET: {{ hostvars['vm3-prefet']['ansible_host'] }}:9051"
+          - ""
+          - "🔗 Channel: contrat-agraire"
+          - "📜 Chaincode: contrat-agraire-cc v4.0"
+          - "🌐 API REST: http://{{ hostvars['vm1-afor']['ansible_host'] }}:3000"
+          - "📚 Swagger: http://{{ hostvars['vm1-afor']['ansible_host'] }}:3000/api-docs"
+          - ""
+          - "🔐 Authentification Keycloak:"
+          - "   • URL: https://auth.digifor2.afor-ci.app"
+          - "   • Realm: digifor2"
+          - "   • Client: iam-user-auth"
+          - ""
+          - "✅ Toutes les phases terminées avec succès!"
+          - "════════════════════════════════════════════════════════════"

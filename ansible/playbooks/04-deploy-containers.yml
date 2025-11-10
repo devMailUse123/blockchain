@@ -1,0 +1,124 @@
+---
+# Playbook 4: Déploiement des Docker Compose files et démarrage des conteneurs
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/04-deploy-containers.yml
+
+- name: "Copie des fichiers Docker Compose vers Orderer"
+  hosts: orderers
+  gather_facts: no
+  
+  tasks:
+    - name: "Copie du docker-compose pour Orderer"
+      copy:
+        src: "{{ local_project_path }}/deployment/vm4-orderer/docker-compose.yml"
+        dest: "{{ remote_fabric_path }}/docker-compose.yml"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+        
+    - name: "Remplacement des placeholders IP dans docker-compose Orderer"
+      replace:
+        path: "{{ remote_fabric_path }}/docker-compose.yml"
+        regexp: "{{ item.placeholder }}"
+        replace: "{{ item.value }}"
+      loop:
+        - { placeholder: 'AFOR_IP_HERE', value: "{{ hostvars['vm1-afor']['private_ip'] }}" }
+        - { placeholder: 'CVGFR_IP_HERE', value: "{{ hostvars['vm2-cvgfr']['private_ip'] }}" }
+        - { placeholder: 'PREFET_IP_HERE', value: "{{ hostvars['vm3-prefet']['private_ip'] }}" }
+        
+    - name: "Démarrage des conteneurs Orderer"
+      community.docker.docker_compose:
+        project_src: "{{ remote_fabric_path }}"
+        state: present
+        pull: yes
+      register: orderer_deploy
+      
+    - name: "Attente que l'Orderer soit prêt (30s)"
+      wait_for:
+        port: "{{ orderer_port }}"
+        host: "{{ ansible_host }}"
+        timeout: 60
+        delay: 10
+        
+    - name: "Vérification du statut Orderer"
+      command: docker ps --filter "name=orderer" --format "table {%raw%}{{.Names}}\t{{.Status}}{%endraw%}"
+      register: orderer_status
+      changed_when: false
+      
+    - name: "Statut Orderer"
+      debug:
+        msg: "{{ orderer_status.stdout_lines }}"
+
+- name: "Copie des fichiers Docker Compose vers Peers et démarrage"
+  hosts: peers
+  gather_facts: no
+  serial: 1  # Démarrer les peers un par un
+  
+  tasks:
+    - name: "Copie du docker-compose pour {{ org_name | upper }}"
+      copy:
+        src: "{{ local_project_path }}/deployment/{{ inventory_hostname }}/docker-compose.yml"
+        dest: "{{ remote_fabric_path }}/docker-compose.yml"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+        
+    - name: "Remplacement des placeholders IP dans docker-compose {{ org_name | upper }}"
+      replace:
+        path: "{{ remote_fabric_path }}/docker-compose.yml"
+        regexp: "{{ item.placeholder }}"
+        replace: "{{ item.value }}"
+      loop:
+        - { placeholder: 'ORDERER_IP_HERE', value: "{{ hostvars['vm4-orderer']['private_ip'] }}" }
+        - { placeholder: 'AFOR_IP_HERE', value: "{{ hostvars['vm1-afor']['private_ip'] }}" }
+        - { placeholder: 'CVGFR_IP_HERE', value: "{{ hostvars['vm2-cvgfr']['private_ip'] }}" }
+        - { placeholder: 'PREFET_IP_HERE', value: "{{ hostvars['vm3-prefet']['private_ip'] }}" }
+        
+    - name: "Démarrage des conteneurs {{ org_name | upper }}"
+      community.docker.docker_compose:
+        project_src: "{{ remote_fabric_path }}"
+        state: present
+        pull: yes
+      register: peer_deploy
+      
+    - name: "Attente que le Peer {{ org_name | upper }} soit prêt (30s)"
+      wait_for:
+        port: "{{ peer_port }}"
+        host: "{{ ansible_host }}"
+        timeout: 60
+        delay: 10
+        
+    - name: "Attente que CouchDB {{ org_name | upper }} soit prêt (30s)"
+      wait_for:
+        port: "{{ couchdb_port }}"
+        host: "{{ ansible_host }}"
+        timeout: 60
+        delay: 10
+        
+    - name: "Vérification du statut Peer {{ org_name | upper }}"
+      command: docker ps --format "table {%raw%}{{.Names}}\t{{.Status}}{%endraw%}"
+      register: peer_status
+      changed_when: false
+      
+    - name: "Statut Peer {{ org_name | upper }}"
+      debug:
+        msg: "{{ peer_status.stdout_lines }}"
+
+- name: "Vérification globale du réseau"
+  hosts: all
+  gather_facts: no
+  
+  tasks:
+    - name: "Liste des conteneurs actifs"
+      command: docker ps --format "{%raw%}{{.Names}}{%endraw%}"
+      register: containers
+      changed_when: false
+      
+    - name: "Résumé des conteneurs sur {{ inventory_hostname }}"
+      debug:
+        msg: "{{ containers.stdout_lines }}"
+        
+    - name: "Vérification de la connectivité réseau Docker"
+      command: docker network inspect fabric-network
+      register: network_info
+      changed_when: false
+      failed_when: false

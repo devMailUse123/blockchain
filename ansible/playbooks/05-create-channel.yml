@@ -1,0 +1,194 @@
+---
+# Playbook 5: Création du channel et join des peers
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/05-create-channel.yml
+
+- name: "Copie des artefacts de channel"
+  hosts: vm1-afor
+  gather_facts: no
+  
+  tasks:
+    - name: "Vérification de l'existence du genesis block local"
+      stat:
+        path: "{{ local_project_path }}/network/channel-artifacts/{{ network_name }}.block"
+      delegate_to: localhost
+      register: genesis_block
+      
+    - name: "Copie du genesis block s'il existe"
+      copy:
+        src: "{{ local_project_path }}/network/channel-artifacts/{{ network_name }}.block"
+        dest: "{{ remote_fabric_path }}/channel-artifacts/{{ network_name }}.block"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+      when: genesis_block.stat.exists
+      
+    - name: "Création du répertoire pour configtx"
+      file:
+        path: "{{ remote_fabric_path }}/configtx"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+        
+    - name: "Copie du fichier configtx.yaml"
+      copy:
+        src: "{{ local_project_path }}/network/configtx.yaml"
+        dest: "{{ remote_fabric_path }}/configtx/configtx.yaml"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+
+- name: "Création du channel via Orderer"
+  hosts: vm4-orderer
+  gather_facts: no
+  
+  tasks:
+    - name: "Vérification si le channel existe déjà"
+      shell: |
+        docker exec orderer.foncier.ci osnadmin channel list \
+          --channelID {{ network_name }} \
+          -o localhost:7053 \
+          --ca-file /var/hyperledger/orderer/tls/ca.crt \
+          --client-cert /var/hyperledger/orderer/tls/server.crt \
+          --client-key /var/hyperledger/orderer/tls/server.key 2>&1 || echo "not-found"
+      register: channel_check
+      changed_when: false
+      failed_when: false
+      
+    - name: "Génération du genesis block si nécessaire"
+      shell: |
+        docker exec -e FABRIC_CFG_PATH=/var/hyperledger/config \
+          orderer.foncier.ci \
+          configtxgen -profile ThreeOrgsApplicationGenesis \
+          -outputBlock /var/hyperledger/orderer/channel-artifacts/{{ network_name }}.block \
+          -channelID {{ network_name }}
+      when: "'not-found' in channel_check.stdout"
+      register: genesis_creation
+      
+    - name: "Création du channel {{ network_name }}"
+      shell: |
+        docker exec orderer.foncier.ci osnadmin channel join \
+          --channelID {{ network_name }} \
+          --config-block /var/hyperledger/orderer/channel-artifacts/{{ network_name }}.block \
+          -o localhost:7053 \
+          --ca-file /var/hyperledger/orderer/tls/ca.crt \
+          --client-cert /var/hyperledger/orderer/tls/server.crt \
+          --client-key /var/hyperledger/orderer/tls/server.key
+      when: "'not-found' in channel_check.stdout"
+      register: channel_create
+      
+    - name: "Attente de la disponibilité du channel (20s)"
+      pause:
+        seconds: 20
+      when: channel_create.changed
+      
+    - name: "Liste des channels sur Orderer"
+      shell: |
+        docker exec orderer.foncier.ci osnadmin channel list \
+          -o localhost:7053 \
+          --ca-file /var/hyperledger/orderer/tls/ca.crt \
+          --client-cert /var/hyperledger/orderer/tls/server.crt \
+          --client-key /var/hyperledger/orderer/tls/server.key
+      register: orderer_channels
+      changed_when: false
+      
+    - name: "Channels sur Orderer"
+      debug:
+        msg: "{{ orderer_channels.stdout_lines }}"
+
+- name: "Récupération du genesis block"
+  hosts: vm1-afor
+  gather_facts: no
+  
+  tasks:
+    - name: "Fetch du genesis block depuis l'Orderer"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:{{ peer_port }} \
+          peer0.{{ org_domain }} \
+          peer channel fetch 0 /tmp/{{ network_name }}.block \
+          -o orderer.foncier.ci:7050 \
+          -c {{ network_name }} \
+          --tls \
+          --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp/tlscacerts/tlsca.foncier.ci-cert.pem
+      register: fetch_block
+      retries: 3
+      delay: 10
+      until: fetch_block.rc == 0
+
+- name: "Join des Peers au channel"
+  hosts: peers
+  gather_facts: no
+  serial: 1
+  
+  tasks:
+    - name: "Vérification si le peer a déjà joint le channel"
+      shell: |
+        docker exec peer0.{{ org_domain }} peer channel list 2>&1 | grep {{ network_name }} || echo "not-joined"
+      register: peer_channel_check
+      changed_when: false
+      failed_when: false
+      
+    - name: "Fetch du genesis block sur {{ org_name | upper }}"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:7051 \
+          peer0.{{ org_domain }} \
+          peer channel fetch 0 /tmp/{{ network_name }}.block \
+          -o orderer.foncier.ci:7050 \
+          -c {{ network_name }} \
+          --tls \
+          --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp/tlscacerts/tlsca.foncier.ci-cert.pem
+      when: "'not-joined' in peer_channel_check.stdout"
+      register: fetch_result
+      retries: 3
+      delay: 10
+      
+    - name: "Join du peer {{ org_name | upper }} au channel {{ network_name }}"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:7051 \
+          peer0.{{ org_domain }} \
+          peer channel join -b /tmp/{{ network_name }}.block
+      when: "'not-joined' in peer_channel_check.stdout"
+      register: join_result
+      
+    - name: "Attente après join (10s)"
+      pause:
+        seconds: 10
+      when: join_result.changed
+      
+    - name: "Liste des channels du peer {{ org_name | upper }}"
+      shell: docker exec peer0.{{ org_domain }} peer channel list
+      register: peer_channels
+      changed_when: false
+      
+    - name: "Channels du peer {{ org_name | upper }}"
+      debug:
+        msg: "{{ peer_channels.stdout_lines }}"
+
+- name: "Résumé de la création du channel"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  
+  tasks:
+    - name: "Résumé"
+      debug:
+        msg:
+          - "✅ Channel '{{ network_name }}' créé"
+          - "✅ Orderer a joint le channel"
+          - "✅ Tous les peers ont joint le channel"
+          - "▶ Prochaine étape: Installer et approuver le chaincode (playbook 06)"

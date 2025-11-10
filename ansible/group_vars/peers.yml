@@ -1,0 +1,39 @@
+---
+# Variables spécifiques aux peers
+
+# Règles de pare-feu pour peers (chaque peer a des ports différents)
+peer_ufw_base_rules:
+  - { proto: tcp, rule: allow, comment: 'Peer Port' }
+  - { proto: tcp, rule: allow, comment: 'Peer Chaincode Port' }
+  - { proto: tcp, rule: allow, comment: 'Peer Metrics' }
+  - { proto: tcp, rule: allow, comment: 'CA Peer' }
+  - { proto: tcp, rule: allow, comment: 'CouchDB' }
+
+# Variables d'environnement communes aux Peers
+peer_common_env:
+  FABRIC_LOGGING_SPEC: "INFO"
+  CORE_VM_ENDPOINT: "unix:///host/var/run/docker.sock"
+  CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE: "fabric-network"
+  CORE_PEER_TLS_ENABLED: "true"
+  CORE_PEER_PROFILE_ENABLED: "false"
+  CORE_PEER_ADDRESSAUTODETECT: "false"
+  CORE_CHAINCODE_BUILDER: "hyperledger/fabric-ccenv:{{ fabric_version }}"
+  CORE_CHAINCODE_JAVA_RUNTIME: "hyperledger/fabric-javaenv:{{ fabric_version }}"
+  CORE_CHAINCODE_EXECUTETIMEOUT: "300s"
+  CORE_CHAINCODE_STARTUPTIMEOUT: "300s"
+  CORE_METRICS_PROVIDER: "prometheus"
+  FABRIC_CFG_PATH: "/etc/hyperledger/peercfg"
+  CORE_OPERATIONS_LISTENADDRESS: "0.0.0.0:9446"
+
+# Configuration CouchDB
+couchdb_env:
+  COUCHDB_USER: "{{ couchdb_user }}"
+  COUCHDB_PASSWORD: "{{ couchdb_password }}"
+
+# Configuration gossip
+gossip_bootstrap_enabled: true
+gossip_use_leader_election: true
+gossip_org_leader_election: false
+
+# Endorsement policy
+endorsement_policy: "OR('AFOMSP.peer','CVGFRMSP.peer')"

@@ -1,0 +1,275 @@
+---
+# Playbook 6: Installation et déploiement du chaincode
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/06-deploy-chaincode.yml
+
+- name: "Préparation et copie du chaincode"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  
+  tasks:
+    - name: "Vérification de l'existence du package chaincode"
+      find:
+        paths: "{{ local_chaincode_path }}"
+        patterns: "{{ chaincode_name }}*.tar.gz"
+      register: chaincode_package
+      
+    - name: "Package du chaincode trouvé"
+      debug:
+        msg: "Package trouvé: {{ chaincode_package.files[0].path if chaincode_package.matched > 0 else 'Aucun package' }}"
+      when: chaincode_package.matched > 0
+
+- name: "Copie du chaincode sur les peers"
+  hosts: peers
+  gather_facts: no
+  
+  tasks:
+    - name: "Création du répertoire chaincode"
+      file:
+        path: "{{ remote_chaincode_path }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      become: yes
+      
+    - name: "Recherche du package chaincode local"
+      find:
+        paths: "{{ local_chaincode_path }}"
+        patterns: "{{ chaincode_name }}*.tar.gz"
+      delegate_to: localhost
+      register: local_cc_package
+      
+    - name: "Copie du package chaincode vers {{ org_name | upper }}"
+      copy:
+        src: "{{ local_cc_package.files[0].path }}"
+        dest: "{{ remote_chaincode_path }}/{{ chaincode_name }}.tar.gz"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+      when: local_cc_package.matched > 0
+
+- name: "Installation du chaincode sur les peers AFOR et CVGFR"
+  hosts: afor:cvgfr
+  gather_facts: no
+  serial: 1
+  
+  tasks:
+    - name: "Vérification si le chaincode est déjà installé sur {{ org_name | upper }}"
+      shell: |
+        docker exec peer0.{{ org_domain }} peer lifecycle chaincode queryinstalled 2>&1 | grep "{{ chaincode_label }}" || echo "not-installed"
+      register: cc_check
+      changed_when: false
+      failed_when: false
+      
+    - name: "Installation du chaincode sur peer {{ org_name | upper }}"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:7051 \
+          peer0.{{ org_domain }} \
+          peer lifecycle chaincode install /opt/chaincode/{{ chaincode_name }}.tar.gz
+      when: "'not-installed' in cc_check.stdout"
+      register: install_result
+      
+    - name: "Récupération du Package ID"
+      shell: |
+        docker exec peer0.{{ org_domain }} peer lifecycle chaincode queryinstalled 2>&1 | \
+        grep "{{ chaincode_label }}" | \
+        awk '{print $3}' | \
+        sed 's/,$//'
+      register: package_id_result
+      changed_when: false
+      
+    - name: "Package ID pour {{ org_name | upper }}"
+      debug:
+        msg: "Package ID: {{ package_id_result.stdout }}"
+      
+    - name: "Sauvegarde du Package ID"
+      set_fact:
+        chaincode_package_id: "{{ package_id_result.stdout }}"
+      
+    - name: "Approbation du chaincode pour {{ org_name | upper }}"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:7051 \
+          peer0.{{ org_domain }} \
+          peer lifecycle chaincode approveformyorg \
+          -o orderer.foncier.ci:7050 \
+          --channelID {{ network_name }} \
+          --name {{ chaincode_name }} \
+          --version {{ chaincode_version }} \
+          --package-id {{ chaincode_package_id }} \
+          --sequence {{ chaincode_sequence }} \
+          --tls \
+          --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp/tlscacerts/tlsca.foncier.ci-cert.pem \
+          --signature-policy "OR('AFOMSP.peer','CVGFRMSP.peer')"
+      register: approve_result
+      retries: 3
+      delay: 10
+      
+    - name: "Attente après approbation (15s)"
+      pause:
+        seconds: 15
+      when: approve_result.changed
+
+- name: "Vérification de la disponibilité pour commit"
+  hosts: vm1-afor
+  gather_facts: no
+  
+  tasks:
+    - name: "Check commit readiness"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:7051 \
+          peer0.{{ org_domain }} \
+          peer lifecycle chaincode checkcommitreadiness \
+          --channelID {{ network_name }} \
+          --name {{ chaincode_name }} \
+          --version {{ chaincode_version }} \
+          --sequence {{ chaincode_sequence }} \
+          --tls \
+          --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp/tlscacerts/tlsca.foncier.ci-cert.pem \
+          --signature-policy "OR('AFOMSP.peer','CVGFRMSP.peer')"
+      register: readiness_check
+      changed_when: false
+      
+    - name: "Commit readiness status"
+      debug:
+        msg: "{{ readiness_check.stdout_lines }}"
+
+- name: "Commit du chaincode sur le channel"
+  hosts: vm1-afor
+  gather_facts: no
+  
+  tasks:
+    - name: "Vérification si le chaincode est déjà commit"
+      shell: |
+        docker exec peer0.{{ org_domain }} peer lifecycle chaincode querycommitted \
+          --channelID {{ network_name }} \
+          --name {{ chaincode_name }} 2>&1 || echo "not-committed"
+      register: commit_check
+      changed_when: false
+      failed_when: false
+      
+    - name: "Commit du chaincode definition"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:7051 \
+          peer0.{{ org_domain }} \
+          peer lifecycle chaincode commit \
+          -o orderer.foncier.ci:7050 \
+          --channelID {{ network_name }} \
+          --name {{ chaincode_name }} \
+          --version {{ chaincode_version }} \
+          --sequence {{ chaincode_sequence }} \
+          --tls \
+          --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp/tlscacerts/tlsca.foncier.ci-cert.pem \
+          --peerAddresses peer0.afor.foncier.ci:7051 \
+          --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/tls/ca.crt \
+          --peerAddresses peer0.cvgfr.foncier.ci:8051 \
+          --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/tls/ca.crt \
+          --signature-policy "OR('AFOMSP.peer','CVGFRMSP.peer')"
+      when: "'not-committed' in commit_check.stdout"
+      register: commit_result
+      
+    - name: "Attente du déploiement du chaincode (30s)"
+      pause:
+        seconds: 30
+      when: commit_result.changed
+      
+    - name: "Vérification du chaincode commit"
+      shell: |
+        docker exec peer0.{{ org_domain }} peer lifecycle chaincode querycommitted \
+          --channelID {{ network_name }} \
+          --name {{ chaincode_name }}
+      register: committed_cc
+      changed_when: false
+      
+    - name: "Chaincode commit status"
+      debug:
+        msg: "{{ committed_cc.stdout_lines }}"
+
+- name: "Test du chaincode"
+  hosts: vm1-afor
+  gather_facts: no
+  
+  tasks:
+    - name: "Test d'invocation: Création d'un contrat test"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:7051 \
+          peer0.{{ org_domain }} \
+          peer chaincode invoke \
+          -o orderer.foncier.ci:7050 \
+          -C {{ network_name }} \
+          -n {{ chaincode_name }} \
+          --tls \
+          --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp/tlscacerts/tlsca.foncier.ci-cert.pem \
+          --peerAddresses peer0.afor.foncier.ci:7051 \
+          --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/tls/ca.crt \
+          --peerAddresses peer0.cvgfr.foncier.ci:8051 \
+          --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/tls/ca.crt \
+          -c '{"function":"createContrat","Args":["ANSIBLE-TEST-001","KOUAME Jean","N'\''GUESSAN Marie","Bouake","2.5","Titre Foncier"]}'
+      register: invoke_test
+      ignore_errors: yes
+      
+    - name: "Attente de la propagation (10s)"
+      pause:
+        seconds: 10
+      when: invoke_test.rc == 0
+      
+    - name: "Test de query: Lecture du contrat test"
+      shell: |
+        docker exec \
+          -e CORE_PEER_LOCALMSPID={{ msp_id }} \
+          -e CORE_PEER_TLS_ENABLED=true \
+          -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/peers/peer0.{{ org_domain }}/tls/ca.crt \
+          -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/{{ org_domain }}/users/Admin@{{ org_domain }}/msp \
+          -e CORE_PEER_ADDRESS=peer0.{{ org_domain }}:7051 \
+          peer0.{{ org_domain }} \
+          peer chaincode query \
+          -C {{ network_name }} \
+          -n {{ chaincode_name }} \
+          -c '{"function":"queryContrat","Args":["ANSIBLE-TEST-001"]}'
+      register: query_test
+      when: invoke_test.rc == 0
+      
+    - name: "Résultat du test"
+      debug:
+        msg: "{{ query_test.stdout if query_test.rc == 0 else 'Test skipped or failed' }}"
+      when: invoke_test.rc == 0
+
+- name: "Résumé du déploiement chaincode"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  
+  tasks:
+    - name: "Résumé"
+      debug:
+        msg:
+          - "✅ Chaincode '{{ chaincode_name }}' v{{ chaincode_version }} installé"
+          - "✅ Approuvé par AFOR et CVGFR"
+          - "✅ Commit sur le channel '{{ network_name }}'"
+          - "✅ Test d'invocation effectué"
+          - "▶ Prochaine étape: Déployer l'API REST (playbook 07)"

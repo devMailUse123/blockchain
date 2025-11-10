@@ -1,0 +1,184 @@
+---
+# Playbook 7: Déploiement de l'API REST sur VM1 (AFOR)
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/07-deploy-api.yml
+
+- name: "Déploiement de l'API REST"
+  hosts: vm1-afor
+  gather_facts: no
+  
+  tasks:
+    - name: "Installation de Node.js et npm"
+      apt:
+        name:
+          - nodejs
+          - npm
+        state: present
+        update_cache: yes
+      become: yes
+      
+    - name: "Vérification des versions Node.js"
+      shell: "node --version && npm --version"
+      register: node_version
+      changed_when: false
+      
+    - name: "Création du répertoire API"
+      file:
+        path: "{{ remote_fabric_path }}/api"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+        
+    - name: "Copie des fichiers API"
+      synchronize:
+        src: "{{ local_project_path }}/api/"
+        dest: "{{ remote_fabric_path }}/api/"
+        delete: no
+        recursive: yes
+        times: yes
+        rsync_opts:
+          - "--exclude=node_modules"
+          - "--exclude=logs/*.log"
+          - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
+          
+    - name: "Copie du fichier .env"
+      copy:
+        src: "{{ local_project_path }}/api/.env"
+        dest: "{{ remote_fabric_path }}/api/.env"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+        
+    - name: "Installation des dépendances npm"
+      npm:
+        path: "{{ remote_fabric_path }}/api"
+        state: present
+      environment:
+        NODE_ENV: production
+      register: npm_install
+      
+    - name: "Création du service systemd pour l'API"
+      copy:
+        dest: /etc/systemd/system/fabric-api.service
+        content: |
+          [Unit]
+          Description=Hyperledger Fabric REST API
+          After=docker.service
+          Requires=docker.service
+          
+          [Service]
+          Type=simple
+          User={{ ansible_user }}
+          WorkingDirectory={{ remote_fabric_path }}/api
+          Environment=NODE_ENV=production
+          ExecStart=/usr/bin/npm start
+          Restart=on-failure
+          RestartSec=10
+          StandardOutput=append:{{ remote_fabric_path }}/api/logs/api.log
+          StandardError=append:{{ remote_fabric_path }}/api/logs/error.log
+          
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      become: yes
+      register: api_service
+      
+    - name: "Création du répertoire logs"
+      file:
+        path: "{{ remote_fabric_path }}/api/logs"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+        
+    - name: "Reload systemd"
+      systemd:
+        daemon_reload: yes
+      become: yes
+      when: api_service.changed
+      
+    - name: "Démarrage et activation du service API"
+      systemd:
+        name: fabric-api
+        state: started
+        enabled: yes
+      become: yes
+      
+    - name: "Attente que l'API soit prête (30s)"
+      wait_for:
+        port: "{{ api_port }}"
+        host: "{{ ansible_host }}"
+        timeout: 60
+        delay: 10
+        
+    - name: "Test du endpoint health"
+      uri:
+        url: "http://{{ ansible_host }}:{{ api_port }}/api/health"
+        method: GET
+        return_content: yes
+      register: health_check
+      retries: 5
+      delay: 10
+      until: health_check.status == 200
+      
+    - name: "Résultat du health check"
+      debug:
+        msg: "{{ health_check.json }}"
+        
+    - name: "Test de connexion Keycloak (obtention du token)"
+      uri:
+        url: "https://auth.digifor2.afor-ci.app/realms/digifor2/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          grant_type: "client_credentials"
+          client_id: "iam-user-auth"
+          client_secret: "V1pB8UbbtyUBua35NsrCVCbzYzPFnmr3"
+        return_content: yes
+        validate_certs: yes
+      register: keycloak_token
+      ignore_errors: yes
+      
+    - name: "Token Keycloak obtenu"
+      debug:
+        msg: "Token expires_in: {{ keycloak_token.json.expires_in | default('N/A') }} seconds"
+      when: keycloak_token.status == 200
+      
+    - name: "Test du endpoint /api/contracts avec authentification"
+      uri:
+        url: "http://{{ ansible_host }}:{{ api_port }}/api/contracts"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ keycloak_token.json.access_token }}"
+        return_content: yes
+      register: contracts_test
+      when: keycloak_token.status == 200
+      ignore_errors: yes
+      
+    - name: "Résultat de la requête contracts"
+      debug:
+        msg: "{{ contracts_test.json | default('Request failed') }}"
+      when: contracts_test is defined and contracts_test.status == 200
+      
+    - name: "Affichage de la documentation Swagger"
+      debug:
+        msg:
+          - "📚 Documentation Swagger disponible sur:"
+          - "   http://{{ ansible_host }}:{{ api_port }}/api-docs"
+          
+    - name: "Statut du service API"
+      systemd:
+        name: fabric-api
+      register: api_status
+      become: yes
+      
+    - name: "Résumé du déploiement API"
+      debug:
+        msg:
+          - "✅ Node.js {{ node_version.stdout_lines[0] }}"
+          - "✅ npm {{ node_version.stdout_lines[1] }}"
+          - "✅ API démarrée sur port {{ api_port }}"
+          - "✅ Service systemd: {{ api_status.status.ActiveState }}"
+          - "✅ Health check: OK"
+          - "✅ Keycloak: {{ 'Connected' if keycloak_token.status == 200 else 'Check configuration' }}"
+          - "📖 Swagger: http://{{ ansible_host }}:{{ api_port }}/api-docs"

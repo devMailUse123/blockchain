@@ -1,6 +1,11 @@
 /home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/ContratAgraire.java
 /home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/util/DeterministicMapper.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/PartySignature.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/ContractValidation.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/Actor.java
 /home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/Terrain.java
 /home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/Person.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/ContractApprobation.java
 /home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/FoncierChaincode.java
 /home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/ContractSignatory.java
+/home/absolue/my-blockchain/chaincode-java/src/main/java/ci/foncier/chaincode/model/WorkflowAction.java

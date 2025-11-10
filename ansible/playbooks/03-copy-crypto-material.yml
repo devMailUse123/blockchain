@@ -1,0 +1,159 @@
+---
+# Playbook 3: Copie des certificats et matériel cryptographique
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/03-copy-crypto-material.yml
+
+- name: "Vérification du matériel cryptographique local"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  
+  tasks:
+    - name: "Vérification que les certificats existent"
+      stat:
+        path: "{{ local_crypto_path }}"
+      register: crypto_check
+      failed_when: not crypto_check.stat.exists
+      
+    - name: "Affichage des organisations trouvées"
+      find:
+        paths: "{{ local_crypto_path }}/peerOrganizations"
+        file_type: directory
+        recurse: no
+      register: peer_orgs
+      
+    - name: "Liste des organisations Peer"
+      debug:
+        msg: "Organisations trouvées: {{ peer_orgs.files | map(attribute='path') | map('basename') | list }}"
+
+- name: "Copie des certificats vers VM Orderer"
+  hosts: orderers
+  gather_facts: no
+  
+  tasks:
+    - name: "Création des répertoires pour les certificats Orderer"
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - "{{ remote_crypto_path }}/ordererOrganizations"
+        - "{{ remote_crypto_path }}/peerOrganizations"
+      become: yes
+      
+    - name: "Copie des certificats OrdererOrganizations"
+      synchronize:
+        src: "{{ local_crypto_path }}/ordererOrganizations/"
+        dest: "{{ remote_crypto_path }}/ordererOrganizations/"
+        delete: no
+        recursive: yes
+        times: yes
+        rsync_opts:
+          - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
+      
+    - name: "Copie des certificats de toutes les organisations Peer (pour discovery)"
+      synchronize:
+        src: "{{ local_crypto_path }}/peerOrganizations/"
+        dest: "{{ remote_crypto_path }}/peerOrganizations/"
+        delete: no
+        recursive: yes
+        times: yes
+        rsync_opts:
+          - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
+          
+    - name: "Vérification des certificats Orderer copiés"
+      find:
+        paths: "{{ remote_crypto_path }}/ordererOrganizations/{{ org_domain }}"
+        recurse: yes
+        file_type: file
+      register: orderer_certs
+      
+    - name: "Résumé Orderer"
+      debug:
+        msg: "{{ orderer_certs.matched }} fichiers copiés pour Orderer"
+
+- name: "Copie des certificats vers VMs Peer"
+  hosts: peers
+  gather_facts: no
+  
+  tasks:
+    - name: "Création des répertoires pour les certificats Peer"
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - "{{ remote_crypto_path }}/peerOrganizations"
+        - "{{ remote_crypto_path }}/ordererOrganizations"
+      become: yes
+      
+    - name: "Copie des certificats de l'organisation {{ org_name | upper }}"
+      synchronize:
+        src: "{{ local_crypto_path }}/peerOrganizations/{{ org_domain }}/"
+        dest: "{{ remote_crypto_path }}/peerOrganizations/{{ org_domain }}/"
+        delete: no
+        recursive: yes
+        times: yes
+        rsync_opts:
+          - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
+          
+    - name: "Copie des certificats Orderer (pour connexion TLS)"
+      synchronize:
+        src: "{{ local_crypto_path }}/ordererOrganizations/"
+        dest: "{{ remote_crypto_path }}/ordererOrganizations/"
+        delete: no
+        recursive: yes
+        times: yes
+        rsync_opts:
+          - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
+          
+    - name: "Copie des certificats des autres organisations Peer (pour endorsement)"
+      synchronize:
+        src: "{{ local_crypto_path }}/peerOrganizations/{{ item }}/"
+        dest: "{{ remote_crypto_path }}/peerOrganizations/{{ item }}/"
+        delete: no
+        recursive: yes
+        times: yes
+        rsync_opts:
+          - "--chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r"
+      loop:
+        - "afor.foncier.ci"
+        - "cvgfr.foncier.ci"
+        - "prefet.foncier.ci"
+      when: item != org_domain
+      
+    - name: "Vérification des certificats Peer copiés"
+      find:
+        paths: "{{ remote_crypto_path }}/peerOrganizations/{{ org_domain }}"
+        recurse: yes
+        file_type: file
+      register: peer_certs
+      
+    - name: "Résumé Peer {{ org_name | upper }}"
+      debug:
+        msg: "{{ peer_certs.matched }} fichiers copiés pour {{ org_name | upper }}"
+
+- name: "Résumé final de la copie"
+  hosts: all
+  gather_facts: no
+  
+  tasks:
+    - name: "Vérification finale des permissions"
+      file:
+        path: "{{ remote_crypto_path }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: yes
+      become: yes
+      
+    - name: "Affichage de la taille totale"
+      shell: du -sh {{ remote_crypto_path }}
+      register: crypto_size
+      changed_when: false
+      
+    - name: "Taille du matériel cryptographique"
+      debug:
+        msg: "{{ inventory_hostname }}: {{ crypto_size.stdout }}"

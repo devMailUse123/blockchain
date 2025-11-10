@@ -1,0 +1,123 @@
+---
+# Playbook 2: Configuration du pare-feu UFW
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/02-configure-firewall.yml
+
+- name: "Configuration du pare-feu UFW"
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: "Installation de UFW"
+      apt:
+        name: ufw
+        state: present
+        update_cache: yes
+        
+    - name: "Désactivation temporaire de UFW pour configuration"
+      ufw:
+        state: disabled
+        
+    - name: "Configuration des politiques par défaut"
+      ufw:
+        direction: "{{ item.direction }}"
+        policy: "{{ item.policy }}"
+      loop:
+        - { direction: 'incoming', policy: 'deny' }
+        - { direction: 'outgoing', policy: 'allow' }
+        
+    - name: "Autorisation SSH (règle permanente)"
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+        comment: 'SSH Access'
+        
+    - name: "Configuration des règles communes"
+      ufw:
+        rule: "{{ item.rule }}"
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        comment: "{{ item.comment }}"
+      loop: "{{ common_ufw_rules }}"
+      when: common_ufw_rules is defined
+
+- name: "Configuration du pare-feu pour les Orderers"
+  hosts: orderers
+  become: yes
+  
+  tasks:
+    - name: "Autorisation des ports Orderer"
+      ufw:
+        rule: "{{ item.rule }}"
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        comment: "{{ item.comment }}"
+      loop: "{{ orderer_ufw_rules }}"
+
+- name: "Configuration du pare-feu pour les Peers"
+  hosts: peers
+  become: yes
+  
+  tasks:
+    - name: "Autorisation du port Peer"
+      ufw:
+        rule: allow
+        port: "{{ peer_port }}"
+        proto: tcp
+        comment: "Peer {{ org_name | upper }} Port"
+        
+    - name: "Autorisation du port Chaincode Peer"
+      ufw:
+        rule: allow
+        port: "{{ peer_cc_port }}"
+        proto: tcp
+        comment: "Peer {{ org_name | upper }} Chaincode Port"
+        
+    - name: "Autorisation du port Metrics Peer"
+      ufw:
+        rule: allow
+        port: "{{ peer_metrics_port }}"
+        proto: tcp
+        comment: "Peer {{ org_name | upper }} Metrics"
+        
+    - name: "Autorisation du port CA"
+      ufw:
+        rule: allow
+        port: "{{ ca_port }}"
+        proto: tcp
+        comment: "CA {{ org_name | upper }}"
+        
+    - name: "Autorisation du port CouchDB"
+      ufw:
+        rule: allow
+        port: "{{ couchdb_port }}"
+        proto: tcp
+        comment: "CouchDB {{ org_name | upper }}"
+        
+    - name: "Autorisation du port API (uniquement pour AFOR)"
+      ufw:
+        rule: allow
+        port: "{{ api_port }}"
+        proto: tcp
+        comment: "API REST"
+      when: install_api | default(false)
+
+- name: "Activation du pare-feu"
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: "Activation de UFW"
+      ufw:
+        state: enabled
+      when: ufw_enabled | default(true)
+      
+    - name: "Affichage du statut UFW"
+      command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+      
+    - name: "Résumé de la configuration firewall"
+      debug:
+        msg: "{{ ufw_status.stdout_lines }}"

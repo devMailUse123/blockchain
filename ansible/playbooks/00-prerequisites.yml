@@ -1,0 +1,96 @@
+---
+# Playbook 0: Installation des prérequis sur toutes les VMs
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/00-prerequisites.yml
+
+- name: "Installation des prérequis système"
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: "Mise à jour du cache APT"
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      register: apt_update
+      retries: 3
+      delay: 10
+      until: apt_update is success
+      
+    - name: "Installation des paquets système de base"
+      apt:
+        name: "{{ system_packages }}"
+        state: present
+        update_cache: yes
+      register: pkg_install
+      retries: 3
+      delay: 10
+      until: pkg_install is success
+      
+    - name: "Création du groupe docker"
+      group:
+        name: docker
+        state: present
+        
+    - name: "Ajout de l'utilisateur au groupe docker"
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+        
+    - name: "Création des répertoires Fabric"
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - "{{ remote_fabric_path }}"
+        - "{{ remote_crypto_path }}"
+        - "{{ remote_chaincode_path }}"
+        - "{{ remote_fabric_path }}/scripts"
+        - "{{ remote_fabric_path }}/config"
+        - "{{ remote_fabric_path }}/channel-artifacts"
+        
+    - name: "Configuration des limites système pour Fabric"
+      pam_limits:
+        domain: "{{ ansible_user }}"
+        limit_type: "{{ item.type }}"
+        limit_item: "{{ item.item }}"
+        value: "{{ item.value }}"
+      loop:
+        - { type: 'soft', item: 'nofile', value: '65536' }
+        - { type: 'hard', item: 'nofile', value: '65536' }
+        - { type: 'soft', item: 'nproc', value: '4096' }
+        - { type: 'hard', item: 'nproc', value: '4096' }
+        
+    - name: "Configuration sysctl pour Docker"
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { name: 'net.ipv4.ip_forward', value: '1' }
+        - { name: 'vm.max_map_count', value: '262144' }
+        - { name: 'fs.file-max', value: '2097152' }
+        
+    - name: "Vérification de la connectivité vers les autres VMs"
+      wait_for:
+        host: "{{ hostvars[item]['ansible_host'] }}"
+        port: 22
+        timeout: 30
+      loop: "{{ groups['all'] }}"
+      when: item != inventory_hostname
+      ignore_errors: yes
+      
+    - name: "Affichage du résumé de la VM"
+      debug:
+        msg:
+          - "Hostname: {{ inventory_hostname }}"
+          - "IP: {{ ansible_host }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "RAM: {{ ansible_memtotal_mb }} MB"
+          - "CPU: {{ ansible_processor_vcpus }} cores"
+          - "Fabric Path: {{ remote_fabric_path }}"

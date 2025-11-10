@@ -1,6 +1,10 @@
 ci/foncier/chaincode/util/DeterministicMapper.class
-ci/foncier/chaincode/model/ContratAgraire.class
-ci/foncier/chaincode/FoncierChaincode.class
+ci/foncier/chaincode/model/Actor.class
+ci/foncier/chaincode/model/PartySignature.class
 ci/foncier/chaincode/model/ContractSignatory.class
+ci/foncier/chaincode/model/ContractValidation.class
+ci/foncier/chaincode/model/ContratAgraire.class
+ci/foncier/chaincode/model/ContractApprobation.class
 ci/foncier/chaincode/model/Terrain.class
+ci/foncier/chaincode/model/WorkflowAction.class
 ci/foncier/chaincode/model/Person.class

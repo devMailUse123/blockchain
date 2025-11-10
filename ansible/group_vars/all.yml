@@ -1,0 +1,68 @@
+---
+# Variables globales pour tous les hôtes
+
+# Versions Docker
+docker_version: "24.0.*"
+docker_compose_version: "v2.23.0"
+
+# Paquets système requis
+system_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - jq
+  - git
+  - net-tools
+  - vim
+
+# Configuration firewall UFW
+ufw_enabled: true
+ufw_default_incoming: deny
+ufw_default_outgoing: allow
+
+# Règles de pare-feu communes
+common_ufw_rules:
+  - { port: 22, proto: tcp, rule: allow, comment: 'SSH' }
+
+# Configuration réseau Docker
+docker_network_name: "fabric-network"
+docker_network_subnet: "172.18.0.0/16"
+
+# Configuration des volumes Docker
+docker_volumes:
+  - fabric-ca-server
+  - fabric-peer
+  - fabric-orderer
+  - fabric-couchdb
+
+# Logging Docker
+docker_log_driver: "json-file"
+docker_log_max_size: "100m"
+docker_log_max_file: "3"
+
+# Configuration Fabric
+fabric_ca_image: "hyperledger/fabric-ca:{{ ca_version }}"
+fabric_peer_image: "hyperledger/fabric-peer:{{ fabric_version }}"
+fabric_orderer_image: "hyperledger/fabric-orderer:{{ fabric_version }}"
+fabric_couchdb_image: "couchdb:3.3.3"
+fabric_tools_image: "hyperledger/fabric-tools:{{ fabric_version }}"
+
+# Configuration chaincode
+chaincode_name: "contrat-agraire-cc"
+chaincode_version: "4.0"
+chaincode_sequence: 1
+chaincode_lang: "java"
+chaincode_label: "contrat-agraire-cc_4.0"
+
+# Configuration TLS
+tls_enabled: true
+
+# Timeout de déploiement (secondes)
+deployment_timeout: 300
+
+# Retry configuration
+retry_count: 3
+retry_delay: 10
