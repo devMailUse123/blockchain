@@ -207,6 +207,7 @@ jobs:
             "export REGISTRY=ghcr.io/aforinnov && \
              export VERSION=$VERSION && \
              cd /opt/blockchain && \
+             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin && \
              docker compose pull && \
              docker compose down || true && \
              docker compose up -d && \
