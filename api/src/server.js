@@ -21,14 +21,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware de sécurité
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
+  contentSecurityPolicy: false, // Désactiver CSP pour permettre Swagger UI
 }));
 app.use(cors());
 
