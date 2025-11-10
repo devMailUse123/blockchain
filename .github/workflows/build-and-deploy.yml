@@ -186,12 +186,18 @@ jobs:
           echo "${{ secrets.VM1_SSH_KEY }}" | base64 -d > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 18.194.235.149 >> ~/.ssh/known_hosts
-          # Test SSH connection
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ubuntu@18.194.235.149 "echo 'SSH OK'"
+          # Create deployment directory
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ubuntu@18.194.235.149 "mkdir -p /opt/blockchain"
       
       - name: Extract version
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Copy docker-compose to VM1
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 \
+            docker-compose-production.yml \
+            ubuntu@18.194.235.149:/opt/blockchain/docker-compose.yml
       
       - name: Deploy to VM1
         env:
@@ -200,9 +206,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ubuntu@18.194.235.149 \
             "export REGISTRY=ghcr.io/aforinnov && \
              export VERSION=$VERSION && \
-             mkdir -p /opt/blockchain && \
              cd /opt/blockchain && \
-             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose-production.yml -o docker-compose.yml && \
              docker compose pull && \
              docker compose down || true && \
              docker compose up -d && \
