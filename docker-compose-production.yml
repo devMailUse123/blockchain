@@ -434,7 +434,7 @@ services:
   # ==========================================================================
   api-rest:
     container_name: api-rest
-    image: ${REGISTRY:-ghcr.io/aforinnov}/foncier-api:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/devmailuse123}/foncier-api:${VERSION:-latest}
     labels:
       service: blockchain-api
       component: rest-api
