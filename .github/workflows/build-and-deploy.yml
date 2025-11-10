@@ -215,7 +215,7 @@ jobs:
             "export REGISTRY=ghcr.io/devmailuse123 && \
              export VERSION=$VERSION && \
              cd /opt/blockchain && \
-             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin && \
+             echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u devmailuse123 --password-stdin && \
              docker compose pull && \
              docker compose down || true && \
              docker compose up -d && \
