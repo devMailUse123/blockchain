@@ -75,8 +75,8 @@ services:
       - ORDERER_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
       - ORDERER_METRICS_PROVIDER=${METRICS_PROVIDER:-prometheus}
     volumes:
-      - ../network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp:/var/hyperledger/orderer/msp
-      - ../network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls:/var/hyperledger/orderer/tls
+      - /opt/blockchain/network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/msp:/var/hyperledger/orderer/msp
+      - /opt/blockchain/network/organizations/ordererOrganizations/foncier.ci/orderers/orderer.foncier.ci/tls:/var/hyperledger/orderer/tls
       - orderer-production:/var/hyperledger/production/orderer
       - logs-production:/var/log/fabric
     ports:
@@ -137,8 +137,8 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=${COUCHDB_USER:-admin}
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
     volumes:
-      - ../network/organizations/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/msp:/etc/hyperledger/fabric/msp
-      - ../network/organizations/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/tls:/etc/hyperledger/fabric/tls
+      - /opt/blockchain/network/organizations/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/msp:/etc/hyperledger/fabric/msp
+      - /opt/blockchain/network/organizations/peerOrganizations/afor.foncier.ci/peers/peer0.afor.foncier.ci/tls:/etc/hyperledger/fabric/tls
       - peer0-afor-production:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
       - logs-production:/var/log/fabric
@@ -234,8 +234,8 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=${COUCHDB_USER:-admin}
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
     volumes:
-      - ../network/organizations/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/msp:/etc/hyperledger/fabric/msp
-      - ../network/organizations/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/tls:/etc/hyperledger/fabric/tls
+      - /opt/blockchain/network/organizations/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/msp:/etc/hyperledger/fabric/msp
+      - /opt/blockchain/network/organizations/peerOrganizations/cvgfr.foncier.ci/peers/peer0.cvgfr.foncier.ci/tls:/etc/hyperledger/fabric/tls
       - peer0-cvgfr-production:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
       - logs-production:/var/log/fabric
@@ -331,8 +331,8 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=${COUCHDB_USER:-admin}
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=${COUCHDB_PASSWORD:-adminpw}
     volumes:
-      - ../network/organizations/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/msp:/etc/hyperledger/fabric/msp
-      - ../network/organizations/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/tls:/etc/hyperledger/fabric/tls
+      - /opt/blockchain/network/organizations/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/msp:/etc/hyperledger/fabric/msp
+      - /opt/blockchain/network/organizations/peerOrganizations/prefet.foncier.ci/peers/peer0.prefet.foncier.ci/tls:/etc/hyperledger/fabric/tls
       - peer0-prefet-production:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
       - logs-production:/var/log/fabric
@@ -417,9 +417,9 @@ services:
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
     command: /bin/bash
     volumes:
-      - ../network/organizations:/opt/gopath/src/github.com/hyperledger/fabric/peer/organizations
+      - /opt/blockchain/network/organizations:/opt/gopath/src/github.com/hyperledger/fabric/peer/organizations
       - ../chaincode:/opt/gopath/src/github.com/hyperledger/fabric/peer/chaincode
-      - ../network/channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
+      - /opt/blockchain/network/channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
     networks:
       - foncier-production
     depends_on:
