@@ -41,13 +41,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('combined', { stream: logger.stream }));
 
 // Swagger UI - Documentation avec support Bearer Token
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+const swaggerUiOptions = {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'API Blockchain AFOR - Documentation',
   swaggerOptions: {
     persistAuthorization: true,
   }
-}));
+};
+
+app.use('/api-docs', swaggerUi.serveFiles(swaggerSpec, swaggerUiOptions));
+app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
 // Swagger JSON
 app.get('/api-docs.json', (req, res) => {
