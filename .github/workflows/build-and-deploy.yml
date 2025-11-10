@@ -36,6 +36,7 @@ jobs:
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v')
     outputs:
       chaincode: ${{ steps.filter.outputs.chaincode }}
       api: ${{ steps.filter.outputs.api }}
@@ -58,7 +59,7 @@ jobs:
     needs: changes
     if: |
       always() &&
-      (needs.changes.outputs.chaincode == 'true' || startsWith(github.ref, 'refs/tags/v'))
+      (startsWith(github.ref, 'refs/tags/v') || needs.changes.outputs.chaincode == 'true')
     
     steps:
       - name: Checkout code
@@ -152,7 +153,7 @@ jobs:
     needs: changes
     if: |
       always() &&
-      (needs.changes.outputs.api == 'true' || startsWith(github.ref, 'refs/tags/v'))
+      (startsWith(github.ref, 'refs/tags/v') || needs.changes.outputs.api == 'true')
     permissions:
       contents: read
       packages: write
