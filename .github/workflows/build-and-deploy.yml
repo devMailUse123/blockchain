@@ -32,7 +32,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: devmailuse123
+  IMAGE_PREFIX: ${{ github.repository_owner }}
 
 jobs:
   # ==========================================================================
@@ -212,10 +212,10 @@ jobs:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ubuntu@18.194.235.149 \
-            "export REGISTRY=ghcr.io/devmailuse123 && \
+            "export REGISTRY=ghcr.io/${{ github.repository_owner }} && \
              export VERSION=$VERSION && \
              cd /opt/blockchain && \
-             echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u devmailuse123 --password-stdin && \
+             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin && \
              docker compose pull && \
              docker compose down || true && \
              docker compose up -d && \
