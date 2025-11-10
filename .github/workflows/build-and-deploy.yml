@@ -95,7 +95,8 @@ jobs:
     needs: [changes, build-chaincode]
     if: |
       always() &&
-      (needs.changes.outputs.chaincode == 'true' || startsWith(github.ref, 'refs/tags/v')) &&
+      (startsWith(github.ref, 'refs/tags/v') ||
+       (needs.changes.result == 'success' && needs.changes.outputs.chaincode == 'true')) &&
       (needs.build-chaincode.result == 'success' || needs.build-chaincode.result == 'skipped')
     permissions:
       contents: read
