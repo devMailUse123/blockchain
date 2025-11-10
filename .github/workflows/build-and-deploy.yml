@@ -202,7 +202,7 @@ jobs:
              export VERSION=$VERSION && \
              mkdir -p /opt/blockchain && \
              cd /opt/blockchain && \
-             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.ci.yml -o docker-compose.yml && \
+             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose-production.yml -o docker-compose.yml && \
              docker compose pull && \
              docker compose down || true && \
              docker compose up -d && \
