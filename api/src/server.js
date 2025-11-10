@@ -20,7 +20,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware de sécurité
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
 app.use(cors());
 
 // Rate limiting
