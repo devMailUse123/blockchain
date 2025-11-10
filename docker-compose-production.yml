@@ -428,3 +428,46 @@ services:
       - peer0.cvgfr.foncier.ci
       - peer0.prefet.foncier.ci
     restart: unless-stopped
+
+  # ==========================================================================
+  # API REST
+  # ==========================================================================
+  api-rest:
+    container_name: api-rest
+    image: ${REGISTRY:-ghcr.io/aforinnov}/foncier-api:${VERSION:-latest}
+    labels:
+      service: blockchain-api
+      component: rest-api
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=info
+      - FABRIC_NETWORK_NAME=foncier
+      - FABRIC_CHANNEL_NAME=contrat-agraire
+      - FABRIC_CHAINCODE_NAME=contrat-agraire
+      - FABRIC_WALLET_PATH=/app/wallet
+      - FABRIC_CONNECTION_PROFILE=/app/connection-profile.json
+    ports:
+      - "3000:3000"
+    networks:
+      - foncier-production
+    depends_on:
+      - peer0.afor.foncier.ci
+      - peer0.cvgfr.foncier.ci
+      - peer0.prefet.foncier.ci
+      - orderer.foncier.ci
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
